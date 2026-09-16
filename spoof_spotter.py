@@ -1,4 +1,10 @@
-from core.parser import classify_input, parse_email, parse_domain
+from core.parser import (
+    classify_input,
+    parse_email,
+    parse_domain,
+    validate_email,
+    validate_domain,
+)
 
 def main():
     print("=========================")
@@ -13,6 +19,10 @@ def main():
         print("\nError: No input was provided.")
 
     elif input_type == "email":
+        if not validate_email(user_input):
+            print("\nError: Invalid email address.")
+            return
+
         address, domain = parse_email(user_input)
 
         print("\nInput type: EMAIL")
@@ -20,13 +30,14 @@ def main():
         print(f"Domain: {domain}")
 
     elif input_type == "domain":
+        if not validate_domain(user_input):
+            print("\nError: Invalid domain or website.")
+            return
+
         domain = parse_domain(user_input)
 
-        if domain:
-            print("\nInput type: DOMAIN/WEBSITE")
-            print(f"Domain: {domain}")
-        else:
-            print("\nError: The domain could not be parsed.")
+        print("\nInput type: DOMAIN/WEBSITE")
+        print(f"Domain: {domain}")
 
 if __name__ == "__main__":
     main()
