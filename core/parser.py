@@ -1,4 +1,5 @@
 from urllib.parse import urlparse
+import tldextract
 
 def classify_input(user_input):
     user_input = user_input.strip()
@@ -31,6 +32,23 @@ def parse_domain(user_input):
         return parsed_url.hostname.lower()
 
     return ""
+
+def extract_domain_parts(user_input):
+    hostname = parse_domain(user_input)
+
+    if not hostname:
+        return "", ""
+
+    extracted = tldextract.extract(hostname)
+
+    if not extracted.domain or not extracted.suffix:
+        return "", ""
+
+    base_domain = f"{extracted.domain}.{extracted.suffix}"
+    subdomain = extracted.subdomain
+
+    return subdomain, base_domain
+
 
 def validate_domain(user_input):
     hostname = parse_domain(user_input)
@@ -74,6 +92,12 @@ def validate_email(user_input):
         return False
 
     if ".." in address:
+        return False
+
+    if address.startswith("."):
+        return False
+
+    if address.endswith("."):
         return False
 
     if not domain:

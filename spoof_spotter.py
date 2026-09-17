@@ -4,6 +4,7 @@ from core.parser import (
     parse_domain,
     validate_email,
     validate_domain,
+    extract_domain_parts,
 )
 
 def main():
@@ -35,9 +36,12 @@ def main():
             return
 
         domain = parse_domain(user_input)
+        subdomain, base_domain = extract_domain_parts(user_input)
 
         print("\nInput type: DOMAIN/WEBSITE")
-        print(f"Domain: {domain}")
-
+        print(f"Hostname: {domain}")
+        print(f"Subdomain: {subdomain if subdomain else 'None'}")
+        print(f"Base domain: {base_domain}")
+        
 if __name__ == "__main__":
     main()
