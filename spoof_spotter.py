@@ -7,6 +7,11 @@ from core.parser import (
     extract_domain_parts,
 )
 
+from core.domain_checker import (
+    load_approved_domains,
+    is_approved_domain,
+)
+
 def main():
     print("=========================")
     print("      SPOOF SPOTTER")
@@ -15,6 +20,8 @@ def main():
     user_input = input("\nEnter an email or website: ").strip()
 
     input_type = classify_input(user_input)
+
+    approved_domains = load_approved_domains()
 
     if input_type == "empty":
         print("\nError: No input was provided.")
@@ -26,9 +33,21 @@ def main():
 
         address, domain = parse_email(user_input)
 
+        subdomain, base_domain = extract_domain_parts(domain)
+
+        approved_match = is_approved_domain(
+            base_domain,
+            approved_domains
+        )
+
         print("\nInput type: EMAIL")
         print(f"Email address: {address}")
         print(f"Domain: {domain}")
+        print(f"Base domain: {base_domain}")
+        print(f"Subdomain: {subdomain if subdomain else 'None'}")
+        print(
+            f"Approved domain: {'Yes' if approved_match else 'No'}"
+        )
 
     elif input_type == "domain":
         if not validate_domain(user_input):
@@ -38,10 +57,18 @@ def main():
         domain = parse_domain(user_input)
         subdomain, base_domain = extract_domain_parts(user_input)
 
+        approved_match = is_approved_domain(
+            base_domain,
+            approved_domains
+        )
+
         print("\nInput type: DOMAIN/WEBSITE")
         print(f"Hostname: {domain}")
         print(f"Subdomain: {subdomain if subdomain else 'None'}")
         print(f"Base domain: {base_domain}")
+        print(
+            f"Approved domain: {'Yes' if approved_match else 'No'}"
+        )
         
 if __name__ == "__main__":
     main()
