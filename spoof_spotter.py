@@ -12,6 +12,11 @@ from core.domain_checker import (
     is_approved_domain,
 )
 
+from core.similarity import (
+    find_closest_domain,
+    is_similar_domain,
+)
+
 def main():
     print("=========================")
     print("      SPOOF SPOTTER")
@@ -40,6 +45,16 @@ def main():
             approved_domains
         )
 
+        closest_domain, similarity_score = find_closest_domain(
+            base_domain,
+            approved_domains
+        )
+        
+        similar_match = is_similar_domain(
+            base_domain,
+            approved_domains
+        )
+
         print("\nInput type: EMAIL")
         print(f"Email address: {address}")
         print(f"Domain: {domain}")
@@ -48,6 +63,15 @@ def main():
         print(
             f"Approved domain: {'Yes' if approved_match else 'No'}"
         )
+        if not approved_match:
+            print(f"Closest approved domain: {closest_domain}")
+            print(
+                f"Similarity score: {similarity_score * 100:.1f}%"
+            )
+            print(
+                f"Similar-looking domain: "
+                f"{'Yes' if similar_match else 'No'}"
+            )
 
     elif input_type == "domain":
         if not validate_domain(user_input):
@@ -62,6 +86,16 @@ def main():
             approved_domains
         )
 
+        closest_domain, similarity_score = find_closest_domain(
+            base_domain,
+            approved_domains
+        )
+
+        similar_match = is_similar_domain(
+            base_domain,
+            approved_domains
+        )
+
         print("\nInput type: DOMAIN/WEBSITE")
         print(f"Hostname: {domain}")
         print(f"Subdomain: {subdomain if subdomain else 'None'}")
@@ -69,6 +103,15 @@ def main():
         print(
             f"Approved domain: {'Yes' if approved_match else 'No'}"
         )
+        if not approved_match:
+            print(f"Closest approved domain: {closest_domain}")
+            print(
+                f"Similarity score: {similarity_score * 100:.1f}%"
+            )
+            print(
+                f"Similar-looking domain: "
+                f"{'Yes' if similar_match else 'No'}"
+            )
         
 if __name__ == "__main__":
     main()
