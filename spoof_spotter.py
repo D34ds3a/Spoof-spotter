@@ -17,6 +17,11 @@ from core.similarity import (
     is_similar_domain,
 )
 
+from core.character_checker import (
+    find_digits,
+    find_special_characters,
+)
+
 def main():
     print("=========================")
     print("      SPOOF SPOTTER")
@@ -55,24 +60,49 @@ def main():
             approved_domains
         )
 
+        digits_found = find_digits(base_domain)
+        
+        special_characters_found = find_special_characters(base_domain)
+
+        subdomain_digits = find_digits(subdomain)
+
+        subdomain_special_characters = find_special_characters(subdomain)
+
         print("\nInput type: EMAIL")
         print(f"Email address: {address}")
         print(f"Domain: {domain}")
         print(f"Base domain: {base_domain}")
-        print(f"Subdomain: {subdomain if subdomain else 'None'}")
-        print(
-            f"Approved domain: {'Yes' if approved_match else 'No'}"
-        )
+        print(f"Approved domain: {'Yes' if approved_match else 'No'}")
         if not approved_match:
             print(f"Closest approved domain: {closest_domain}")
-            print(
-                f"Similarity score: {similarity_score * 100:.1f}%"
-            )
-            print(
-                f"Similar-looking domain: "
-                f"{'Yes' if similar_match else 'No'}"
-            )
+            print(f"Similarity score: {similarity_score * 100:.1f}%")
+            print(f"Similar-looking domain: " f"{'Yes' if similar_match else 'No'}")
+        
+        print(f"Base domain numbers detected: "f"{'Yes' if digits_found else 'No'}")
+                
+        if digits_found:
+            print(f"Base domain numbers found: {', '.join(digits_found)}")
+                
+        print(f"Base domain special characters detected: " f"{'Yes' if special_characters_found else 'No'}")
+                
+        if special_characters_found:
+            print("Base domain special characters found: " f"{', '.join(special_characters_found)}") 
+                           
+        
+        print(f"Subdomain: {subdomain if subdomain else 'None'}")
 
+        if subdomain:
+            print(f"Subdomain numbers detected: " f"{'Yes' if subdomain_digits else 'No'}")
+
+        if subdomain_digits:
+            print("Subdomain numbers found: " f"{', '.join(subdomain_digits)}")
+
+        print(f"Subdomain special characters detected: " f"{'Yes' if subdomain_special_characters else 'No'}")
+
+        if subdomain_special_characters:
+            print("Subdomain special characters found: " f"{', '.join(subdomain_special_characters)}")
+
+       
     elif input_type == "domain":
         if not validate_domain(user_input):
             print("\nError: Invalid domain or website.")
@@ -96,22 +126,47 @@ def main():
             approved_domains
         )
 
+        digits_found = find_digits(base_domain)
+
+        special_characters_found = find_special_characters(base_domain)
+
+        subdomain_digits = find_digits(subdomain)
+        
+        subdomain_special_characters = find_special_characters(subdomain)
+
         print("\nInput type: DOMAIN/WEBSITE")
         print(f"Hostname: {domain}")
-        print(f"Subdomain: {subdomain if subdomain else 'None'}")
         print(f"Base domain: {base_domain}")
-        print(
-            f"Approved domain: {'Yes' if approved_match else 'No'}"
-        )
+        print(f"Approved domain: {'Yes' if approved_match else 'No'}")
+        
         if not approved_match:
             print(f"Closest approved domain: {closest_domain}")
-            print(
-                f"Similarity score: {similarity_score * 100:.1f}%"
-            )
-            print(
-                f"Similar-looking domain: "
-                f"{'Yes' if similar_match else 'No'}"
-            )
+            print(f"Similarity score: {similarity_score * 100:.1f}%")
+            print(f"Similar-looking domain: " f"{'Yes' if similar_match else 'No'}")
         
+        print(f"Base domain numbers detected: "f"{'Yes' if digits_found else 'No'}")
+        
+        if digits_found:
+            print(f"Base domain numbers found: {', '.join(digits_found)}")
+        
+        print(f"Base domain special characters detected: " f"{'Yes' if special_characters_found else 'No'}")
+        
+        if special_characters_found:
+            print("Base domain special characters found: " f"{', '.join(special_characters_found)}") 
+
+        print(f"Subdomain: {subdomain if subdomain else 'None'}")
+
+        if subdomain:
+            print(f"Subdomain numbers detected: " f"{'Yes' if subdomain_digits else 'No'}")
+        
+        if subdomain_digits:
+            print("Subdomain numbers found: " f"{', '.join(subdomain_digits)}")
+        
+        print(f"Subdomain special characters detected: " f"{'Yes' if subdomain_special_characters else 'No'}")
+        
+        if subdomain_special_characters:
+            print("Subdomain special characters found: " f"{', '.join(subdomain_special_characters)}")
+
+           
 if __name__ == "__main__":
     main()
