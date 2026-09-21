@@ -20,6 +20,11 @@ from core.similarity import (
 from core.character_checker import (
     find_digits,
     find_special_characters,
+    find_non_ascii_characters,
+    find_homoglyphs,
+    find_mixed_script_labels,
+    has_punycode,
+    decode_punycode_domain,
 )
 
 def main():
@@ -68,6 +73,16 @@ def main():
 
         subdomain_special_characters = find_special_characters(subdomain)
 
+        decoded_domain = decode_punycode_domain(base_domain)
+
+        unicode_characters = find_non_ascii_characters(decoded_domain)
+
+        homoglyphs = find_homoglyphs(decoded_domain)
+
+        mixed_script_labels = find_mixed_script_labels(decoded_domain)
+
+        punycode_detected = has_punycode(base_domain)
+
         print("\nInput type: EMAIL")
         print(f"Email address: {address}")
         print(f"Domain: {domain}")
@@ -102,6 +117,26 @@ def main():
         if subdomain_special_characters:
             print("Subdomain special characters found: " f"{', '.join(subdomain_special_characters)}")
 
+        print(f"Punycode detected: "f"{'Yes' if punycode_detected else 'No'}")
+
+        if punycode_detected:print(f"Decoded domain: {decoded_domain}")
+
+        print(f"Non-ASCII characters detected: "f"{'Yes' if unicode_characters else 'No'}")
+
+        print(f"Potential homoglyphs detected: "f"{'Yes' if homoglyphs else 'No'}")
+
+        for (
+            character,
+            looks_like,
+            codepoint,
+            unicode_name,
+            ) in homoglyphs:
+                print(f"Potential homoglyph: "f"{character} -> {looks_like} "f"({codepoint}, {unicode_name})")
+
+        print(f"Mixed-script labels detected: " f"{'Yes' if mixed_script_labels else 'No'}")
+
+        if mixed_script_labels:
+            print("Mixed-script labels found: "f"{', '.join(mixed_script_labels)}")
        
     elif input_type == "domain":
         if not validate_domain(user_input):
@@ -133,6 +168,17 @@ def main():
         subdomain_digits = find_digits(subdomain)
         
         subdomain_special_characters = find_special_characters(subdomain)
+
+        decoded_domain = decode_punycode_domain(base_domain)
+        
+        unicode_characters = find_non_ascii_characters(decoded_domain)
+        
+        homoglyphs = find_homoglyphs(decoded_domain)
+        
+        mixed_script_labels = find_mixed_script_labels(decoded_domain)
+        
+        punycode_detected = has_punycode(base_domain)
+        
 
         print("\nInput type: DOMAIN/WEBSITE")
         print(f"Hostname: {domain}")
@@ -167,6 +213,27 @@ def main():
         if subdomain_special_characters:
             print("Subdomain special characters found: " f"{', '.join(subdomain_special_characters)}")
 
+        print(f"Punycode detected: "f"{'Yes' if punycode_detected else 'No'}")
+        
+        if punycode_detected:print(f"Decoded domain: {decoded_domain}")
+        
+        print(f"Non-ASCII characters detected: "f"{'Yes' if unicode_characters else 'No'}")
+        
+        print(f"Potential homoglyphs detected: "f"{'Yes' if homoglyphs else 'No'}")
+
+        for (
+            character,
+            looks_like,
+            codepoint,
+            unicode_name,
+            ) in homoglyphs:
+                print(f"Potential homoglyph: "f"{character} -> {looks_like} "f"({codepoint}, {unicode_name})")
+        
+        print(f"Mixed-script labels detected: " f"{'Yes' if mixed_script_labels else 'No'}")
+        
+        if mixed_script_labels:
+            print("Mixed-script labels found: "f"{', '.join(mixed_script_labels)}")
+               
            
 if __name__ == "__main__":
     main()
