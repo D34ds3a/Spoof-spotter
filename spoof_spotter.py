@@ -27,6 +27,10 @@ from core.character_checker import (
     decode_punycode_domain,
 )
 
+from core.risk import calculate_risk
+ 
+
+
 def main():
     print("=========================")
     print("      SPOOF SPOTTER")
@@ -40,6 +44,7 @@ def main():
 
     if input_type == "empty":
         print("\nError: No input was provided.")
+        return
 
     elif input_type == "email":
         if not validate_email(user_input):
@@ -109,13 +114,13 @@ def main():
         if subdomain:
             print(f"Subdomain numbers detected: " f"{'Yes' if subdomain_digits else 'No'}")
 
-        if subdomain_digits:
-            print("Subdomain numbers found: " f"{', '.join(subdomain_digits)}")
+            if subdomain_digits:
+                print("Subdomain numbers found: " f"{', '.join(subdomain_digits)}")
 
-        print(f"Subdomain special characters detected: " f"{'Yes' if subdomain_special_characters else 'No'}")
+            print(f"Subdomain special characters detected: " f"{'Yes' if subdomain_special_characters else 'No'}")
 
-        if subdomain_special_characters:
-            print("Subdomain special characters found: " f"{', '.join(subdomain_special_characters)}")
+            if subdomain_special_characters:
+                print("Subdomain special characters found: " f"{', '.join(subdomain_special_characters)}")
 
         print(f"Punycode detected: "f"{'Yes' if punycode_detected else 'No'}")
 
@@ -205,13 +210,13 @@ def main():
         if subdomain:
             print(f"Subdomain numbers detected: " f"{'Yes' if subdomain_digits else 'No'}")
         
-        if subdomain_digits:
-            print("Subdomain numbers found: " f"{', '.join(subdomain_digits)}")
+            if subdomain_digits:
+                print("Subdomain numbers found: " f"{', '.join(subdomain_digits)}")
         
-        print(f"Subdomain special characters detected: " f"{'Yes' if subdomain_special_characters else 'No'}")
+            print(f"Subdomain special characters detected: " f"{'Yes' if subdomain_special_characters else 'No'}")
         
-        if subdomain_special_characters:
-            print("Subdomain special characters found: " f"{', '.join(subdomain_special_characters)}")
+            if subdomain_special_characters:
+                print("Subdomain special characters found: " f"{', '.join(subdomain_special_characters)}")
 
         print(f"Punycode detected: "f"{'Yes' if punycode_detected else 'No'}")
         
@@ -233,6 +238,33 @@ def main():
         
         if mixed_script_labels:
             print("Mixed-script labels found: "f"{', '.join(mixed_script_labels)}")
+
+
+    risk_score, risk_level, risk_reasons = calculate_risk(
+        approved_match=approved_match,
+        similar_match=similar_match,
+        base_digits=digits_found,
+        base_special_characters=special_characters_found,
+        subdomain_digits=subdomain_digits,
+        subdomain_special_characters=subdomain_special_characters,
+        non_ascii_characters=unicode_characters,
+        homoglyphs=homoglyphs,
+        mixed_script_labels=mixed_script_labels,
+        punycode_detected=punycode_detected,
+    ) 
+
+    print("\n---------- Risk Assessment ----------")
+    print(f"Risk score: {risk_score}/100")
+    print(f"Risk level: {risk_level}")
+
+    if risk_reasons:
+        print("Indicators:")
+
+        for reason in risk_reasons:
+            print(f"- {reason}")
+
+    else:
+        print("Indicators: None")
                
            
 if __name__ == "__main__":
