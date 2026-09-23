@@ -28,6 +28,9 @@ from core.character_checker import (
 )
 
 from core.risk import calculate_risk
+
+from core.report import generate_report
+approved_domains = load_approved_domains()
  
 
 
@@ -42,6 +45,13 @@ def main():
 
     approved_domains = load_approved_domains()
 
+    email_address = None
+    hostname = ""
+    subdomain = ""
+    base_domain = ""
+    display_input_type = ""
+
+
     if input_type == "empty":
         print("\nError: No input was provided.")
         return
@@ -51,200 +61,61 @@ def main():
             print("\nError: Invalid email address.")
             return
 
-        address, domain = parse_email(user_input)
+        email_address, hostname = parse_email(user_input)
 
-        subdomain, base_domain = extract_domain_parts(domain)
+        subdomain, base_domain = extract_domain_parts(hostname)
 
-        approved_match = is_approved_domain(
-            base_domain,
-            approved_domains
-        )
+        display_input_type = "EMAIL"
 
-        closest_domain, similarity_score = find_closest_domain(
-            base_domain,
-            approved_domains
-        )
-        
-        similar_match = is_similar_domain(
-            base_domain,
-            approved_domains
-        )
-
-        digits_found = find_digits(base_domain)
-        
-        special_characters_found = find_special_characters(base_domain)
-
-        subdomain_digits = find_digits(subdomain)
-
-        subdomain_special_characters = find_special_characters(subdomain)
-
-        decoded_domain = decode_punycode_domain(base_domain)
-
-        unicode_characters = find_non_ascii_characters(decoded_domain)
-
-        homoglyphs = find_homoglyphs(decoded_domain)
-
-        mixed_script_labels = find_mixed_script_labels(decoded_domain)
-
-        punycode_detected = has_punycode(base_domain)
-
-        print("\nInput type: EMAIL")
-        print(f"Email address: {address}")
-        print(f"Domain: {domain}")
-        print(f"Base domain: {base_domain}")
-        print(f"Approved domain: {'Yes' if approved_match else 'No'}")
-        if not approved_match:
-            print(f"Closest approved domain: {closest_domain}")
-            print(f"Similarity score: {similarity_score * 100:.1f}%")
-            print(f"Similar-looking domain: " f"{'Yes' if similar_match else 'No'}")
-        
-        print(f"Base domain numbers detected: "f"{'Yes' if digits_found else 'No'}")
-                
-        if digits_found:
-            print(f"Base domain numbers found: {', '.join(digits_found)}")
-                
-        print(f"Base domain special characters detected: " f"{'Yes' if special_characters_found else 'No'}")
-                
-        if special_characters_found:
-            print("Base domain special characters found: " f"{', '.join(special_characters_found)}") 
-                           
-        
-        print(f"Subdomain: {subdomain if subdomain else 'None'}")
-
-        if subdomain:
-            print(f"Subdomain numbers detected: " f"{'Yes' if subdomain_digits else 'No'}")
-
-            if subdomain_digits:
-                print("Subdomain numbers found: " f"{', '.join(subdomain_digits)}")
-
-            print(f"Subdomain special characters detected: " f"{'Yes' if subdomain_special_characters else 'No'}")
-
-            if subdomain_special_characters:
-                print("Subdomain special characters found: " f"{', '.join(subdomain_special_characters)}")
-
-        print(f"Punycode detected: "f"{'Yes' if punycode_detected else 'No'}")
-
-        if punycode_detected:print(f"Decoded domain: {decoded_domain}")
-
-        print(f"Non-ASCII characters detected: "f"{'Yes' if unicode_characters else 'No'}")
-
-        print(f"Potential homoglyphs detected: "f"{'Yes' if homoglyphs else 'No'}")
-
-        for (
-            character,
-            looks_like,
-            codepoint,
-            unicode_name,
-            ) in homoglyphs:
-                print(f"Potential homoglyph: "f"{character} -> {looks_like} "f"({codepoint}, {unicode_name})")
-
-        print(f"Mixed-script labels detected: " f"{'Yes' if mixed_script_labels else 'No'}")
-
-        if mixed_script_labels:
-            print("Mixed-script labels found: "f"{', '.join(mixed_script_labels)}")
-       
     elif input_type == "domain":
         if not validate_domain(user_input):
             print("\nError: Invalid domain or website.")
             return
 
-        domain = parse_domain(user_input)
+        hostname = parse_domain(user_input)
+
         subdomain, base_domain = extract_domain_parts(user_input)
 
-        approved_match = is_approved_domain(
-            base_domain,
-            approved_domains
-        )
-
-        closest_domain, similarity_score = find_closest_domain(
-            base_domain,
-            approved_domains
-        )
-
-        similar_match = is_similar_domain(
-            base_domain,
-            approved_domains
-        )
-
-        digits_found = find_digits(base_domain)
-
-        special_characters_found = find_special_characters(base_domain)
-
-        subdomain_digits = find_digits(subdomain)
-        
-        subdomain_special_characters = find_special_characters(subdomain)
-
-        decoded_domain = decode_punycode_domain(base_domain)
-        
-        unicode_characters = find_non_ascii_characters(decoded_domain)
-        
-        homoglyphs = find_homoglyphs(decoded_domain)
-        
-        mixed_script_labels = find_mixed_script_labels(decoded_domain)
-        
-        punycode_detected = has_punycode(base_domain)
-        
-
-        print("\nInput type: DOMAIN/WEBSITE")
-        print(f"Hostname: {domain}")
-        print(f"Base domain: {base_domain}")
-        print(f"Approved domain: {'Yes' if approved_match else 'No'}")
-        
-        if not approved_match:
-            print(f"Closest approved domain: {closest_domain}")
-            print(f"Similarity score: {similarity_score * 100:.1f}%")
-            print(f"Similar-looking domain: " f"{'Yes' if similar_match else 'No'}")
-        
-        print(f"Base domain numbers detected: "f"{'Yes' if digits_found else 'No'}")
-        
-        if digits_found:
-            print(f"Base domain numbers found: {', '.join(digits_found)}")
-        
-        print(f"Base domain special characters detected: " f"{'Yes' if special_characters_found else 'No'}")
-        
-        if special_characters_found:
-            print("Base domain special characters found: " f"{', '.join(special_characters_found)}") 
-
-        print(f"Subdomain: {subdomain if subdomain else 'None'}")
-
-        if subdomain:
-            print(f"Subdomain numbers detected: " f"{'Yes' if subdomain_digits else 'No'}")
-        
-            if subdomain_digits:
-                print("Subdomain numbers found: " f"{', '.join(subdomain_digits)}")
-        
-            print(f"Subdomain special characters detected: " f"{'Yes' if subdomain_special_characters else 'No'}")
-        
-            if subdomain_special_characters:
-                print("Subdomain special characters found: " f"{', '.join(subdomain_special_characters)}")
-
-        print(f"Punycode detected: "f"{'Yes' if punycode_detected else 'No'}")
-        
-        if punycode_detected:print(f"Decoded domain: {decoded_domain}")
-        
-        print(f"Non-ASCII characters detected: "f"{'Yes' if unicode_characters else 'No'}")
-        
-        print(f"Potential homoglyphs detected: "f"{'Yes' if homoglyphs else 'No'}")
-
-        for (
-            character,
-            looks_like,
-            codepoint,
-            unicode_name,
-            ) in homoglyphs:
-                print(f"Potential homoglyph: "f"{character} -> {looks_like} "f"({codepoint}, {unicode_name})")
-        
-        print(f"Mixed-script labels detected: " f"{'Yes' if mixed_script_labels else 'No'}")
-        
-        if mixed_script_labels:
-            print("Mixed-script labels found: "f"{', '.join(mixed_script_labels)}")
-
+        display_input_type = "DOMAIN/WEBSITE"
+   
+    approved_match = is_approved_domain(
+        base_domain,
+        approved_domains
+    )
+   
+    closest_domain, similarity_score = find_closest_domain(
+        base_domain,
+        approved_domains
+    )
+           
+    similar_match = is_similar_domain(
+        base_domain,
+        approved_domains
+    )
+   
+    base_digits = find_digits(base_domain)
+           
+    base_special_characters = find_special_characters(base_domain)
+   
+    subdomain_digits = find_digits(subdomain)
+   
+    subdomain_special_characters = find_special_characters(subdomain)
+   
+    decoded_domain = decode_punycode_domain(base_domain)
+   
+    unicode_characters = find_non_ascii_characters(decoded_domain)
+   
+    homoglyphs = find_homoglyphs(decoded_domain)
+   
+    mixed_script_labels = find_mixed_script_labels(decoded_domain)
+   
+    punycode_detected = has_punycode(base_domain)
 
     risk_score, risk_level, risk_reasons = calculate_risk(
         approved_match=approved_match,
         similar_match=similar_match,
-        base_digits=digits_found,
-        base_special_characters=special_characters_found,
+        base_digits=base_digits,
+        base_special_characters=base_special_characters,
         subdomain_digits=subdomain_digits,
         subdomain_special_characters=subdomain_special_characters,
         non_ascii_characters=unicode_characters,
@@ -253,19 +124,40 @@ def main():
         punycode_detected=punycode_detected,
     ) 
 
-    print("\n---------- Risk Assessment ----------")
-    print(f"Risk score: {risk_score}/100")
-    print(f"Risk level: {risk_level}")
+    report_data = {
+        "original_input": user_input,
+        "input_type": display_input_type,
+        "email_address": email_address,
+        "hostname": hostname,
+        "subdomain": subdomain,
+        "base_domain": base_domain,
 
-    if risk_reasons:
-        print("Indicators:")
+        "approved_match": approved_match,
+        "closest_domain": closest_domain,
+        "similarity_score": similarity_score,
+        "similar_match": similar_match,
 
-        for reason in risk_reasons:
-            print(f"- {reason}")
+        "base_digits": base_digits,
+        "base_special_characters": base_special_characters,
 
-    else:
-        print("Indicators: None")
-               
+        "subdomain_digits": subdomain_digits,
+        "subdomain_special_characters": subdomain_special_characters,
+
+        "punycode_detected": punycode_detected,
+        "decoded_domain": decoded_domain,
+        "unicode_characters": unicode_characters,
+        "homoglyphs": homoglyphs,
+        "mixed_script_labels": mixed_script_labels,
+
+        "risk_score": risk_score,
+        "risk_level": risk_level,
+        "risk_reasons": risk_reasons,
+    }
+
+    report = generate_report(report_data)
+
+    print()
+    print(report)
            
 if __name__ == "__main__":
     main()
