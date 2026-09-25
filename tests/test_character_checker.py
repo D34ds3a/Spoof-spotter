@@ -1,11 +1,5 @@
 import unittest
 
-from core.character_checker import (
-    find_digits,
-    find_special_characters,
-    has_digits,
-    has_special_characters,
-)
 
 from core.character_checker import (
     find_digits,
@@ -40,14 +34,14 @@ class TestCharacterChecker(unittest.TestCase):
         self.assertFalse(has_special_characters("example.com"))
 
     def test_domain_with_hyphen(self):
-        self.assertTrue(has_special_characters("my-bank.com"))
+        self.assertFalse(has_special_characters("my-bank.com"))
 
     def test_find_special_character(self):
-        characters = find_special_characters("my-bank.com" )
+        characters = find_special_characters("my@bank")
 
         self.assertEqual(
             characters,
-            ["-"]
+            ["@"]
         )
 
     def test_subdomain_with_digits(self):
@@ -63,7 +57,15 @@ class TestCharacterChecker(unittest.TestCase):
 
         self.assertEqual(
             characters,
-            ["-"]
+            []
+        )
+
+    def test_actual_special_character(self):
+        characters = find_special_characters("example_test")
+
+        self.assertEqual(
+            characters,
+            ["_"]
         )
 
     def test_ascii_domain_has_no_unicode(self):

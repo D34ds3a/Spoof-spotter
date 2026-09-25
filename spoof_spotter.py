@@ -30,7 +30,12 @@ from core.character_checker import (
 from core.risk import calculate_risk
 
 from core.report import generate_report
-approved_domains = load_approved_domains()
+
+from core.threat_intel import (
+    load_historical_sources,
+    find_historical_ioc_sources,
+    get_historical_ioc_details,
+)
  
 
 
@@ -44,6 +49,8 @@ def main():
     input_type = classify_input(user_input)
 
     approved_domains = load_approved_domains()
+
+    historical_sources = load_historical_sources()
 
     email_address = None
     hostname = ""
@@ -92,6 +99,18 @@ def main():
         base_domain,
         approved_domains
     )
+
+    historical_ioc_sources = find_historical_ioc_sources(
+        base_domain,
+        historical_sources
+    )
+
+    historical_ioc_details = get_historical_ioc_details(
+        base_domain,
+        historical_sources
+    )
+
+    historical_ioc_match = bool(historical_ioc_details)
    
     base_digits = find_digits(base_domain)
            
@@ -122,6 +141,7 @@ def main():
         homoglyphs=homoglyphs,
         mixed_script_labels=mixed_script_labels,
         punycode_detected=punycode_detected,
+        historical_ioc_match=historical_ioc_match,
     ) 
 
     report_data = {
@@ -136,6 +156,10 @@ def main():
         "closest_domain": closest_domain,
         "similarity_score": similarity_score,
         "similar_match": similar_match,
+
+        "historical_ioc_match": historical_ioc_match,
+        "historical_ioc_sources": historical_ioc_sources,
+        "historical_ioc_details": historical_ioc_details,
 
         "base_digits": base_digits,
         "base_special_characters": base_special_characters,

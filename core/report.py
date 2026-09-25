@@ -1,6 +1,7 @@
 def yes_no(value):
     return "Yes" if value else "No"
 
+
 def generate_report(data):
     lines = []
 
@@ -15,49 +16,120 @@ def generate_report(data):
         lines.append(f"Hostname: {data['hostname']}")
 
     lines.append(f"Base domain: {data['base_domain']}")
-    lines.append(f"Approved domain: {yes_no(data['approved_match'])}")
+    lines.append(
+        f"Approved domain: {yes_no(data['approved_match'])}"
+    )
+
+    lines.append(
+        f"Historical IOC match: "
+        f"{yes_no(data['historical_ioc_match'])}"
+    )
+
+    if data["historical_ioc_match"]:
+        lines.append("Historical threat intelligence:")
+
+        for finding in data["historical_ioc_details"]:
+            lines.append(
+                f"- Source: {finding['source']}"
+            )
+            lines.append(
+                f"  Domain creation date: "
+                f"{finding['creation_date']}"
+            )
+            lines.append(
+                f"  IOC status: "
+                f"{finding['status'].title()}"
+            )
+
+        lines.append(
+            "Note: Historical IOC matches do not by themselves "
+            "establish current malicious activity."
+        )
 
     if not data["approved_match"]:
-        lines.append(f"Closest approved domain: {data['closest_domain']}")
+        lines.append(
+            f"Closest approved domain: "
+            f"{data['closest_domain']}"
+        )
+        lines.append(
+            f"Similarity score: "
+            f"{data['similarity_score'] * 100:.1f}%"
+        )
+        lines.append(
+            f"Similar-looking domain: "
+            f"{yes_no(data['similar_match'])}"
+        )
 
-        lines.append(f"Similarity score: " f"{data['similarity_score'] * 100:.1f}%")
-
-        lines.append(f"Similar-looking domain: " f"{yes_no(data['similar_match'])}")
-
-    lines.append("Base domain numbers detected: " f"{yes_no(data['base_digits'])}")
+    lines.append(
+        f"Base domain numbers detected: "
+        f"{yes_no(data['base_digits'])}"
+    )
 
     if data["base_digits"]:
-        lines.append( "Base domain numbers found: " f"{', '.join(data['base_digits'])}")
+        lines.append(
+            f"Base domain numbers found: "
+            f"{', '.join(data['base_digits'])}"
+        )
 
-    lines.append("Base domain special characters detected: " f"{yes_no(data['base_special_characters'])}")
+    lines.append(
+        f"Base domain special characters detected: "
+        f"{yes_no(data['base_special_characters'])}"
+    )
 
     if data["base_special_characters"]:
-        lines.append("Base domain special characters found: " f"{', '.join(data['base_special_characters'])}")
+        lines.append(
+            f"Base domain special characters found: "
+            f"{', '.join(data['base_special_characters'])}"
+        )
 
     subdomain = data["subdomain"]
 
-    lines.append(f"Subdomain: {subdomain if subdomain else 'None'}")
+    lines.append(
+        f"Subdomain: {subdomain if subdomain else 'None'}"
+    )
 
     if subdomain:
-        lines.append("Subdomain numbers detected: " f"{yes_no(data['subdomain_digits'])}")
+        lines.append(
+            f"Subdomain numbers detected: "
+            f"{yes_no(data['subdomain_digits'])}"
+        )
 
         if data["subdomain_digits"]:
-            lines.append("Subdomain numbers found: " f"{', '.join(data['subdomain_digits'])}")
+            lines.append(
+                f"Subdomain numbers found: "
+                f"{', '.join(data['subdomain_digits'])}"
+            )
 
         lines.append(
-            "Subdomain special characters detected: " f"{yes_no(data['subdomain_special_characters'])}")
+            f"Subdomain special characters detected: "
+            f"{yes_no(data['subdomain_special_characters'])}"
+        )
 
         if data["subdomain_special_characters"]:
-            lines.append("Subdomain special characters found: " f"{', '.join(data['subdomain_special_characters'])}")
+            lines.append(
+                f"Subdomain special characters found: "
+                f"{', '.join(data['subdomain_special_characters'])}"
+            )
 
-    lines.append(f"Punycode detected: " f"{yes_no(data['punycode_detected'])}")
+    lines.append(
+        f"Punycode detected: "
+        f"{yes_no(data['punycode_detected'])}"
+    )
 
     if data["punycode_detected"]:
-        lines.append(f"Decoded domain: {data['decoded_domain']}")
+        lines.append(
+            f"Decoded domain: {data['decoded_domain']}"
+        )
 
-    lines.append("Non-ASCII characters detected: "f"{yes_no(data['unicode_characters'])}")
-    
-    lines.append("Potential homoglyphs detected: "f"{yes_no(data['homoglyphs'])}")
+    lines.append(
+        f"Non-ASCII characters detected: "
+        f"{yes_no(data['unicode_characters'])}"
+    )
+
+    lines.append(
+        f"Potential homoglyphs detected: "
+        f"{yes_no(data['homoglyphs'])}"
+    )
 
     for (
         character,
@@ -65,19 +137,26 @@ def generate_report(data):
         codepoint,
         unicode_name,
     ) in data["homoglyphs"]:
-        lines.append(f"Potential homoglyph: " f"{character} -> {looks_like} " f"({codepoint}, {unicode_name})")
+        lines.append(
+            f"Potential homoglyph: "
+            f"{character} -> {looks_like} "
+            f"({codepoint}, {unicode_name})"
+        )
 
-    lines.append("Mixed-script labels detected: " f"{yes_no(data['mixed_script_labels'])}")
+    lines.append(
+        f"Mixed-script labels detected: "
+        f"{yes_no(data['mixed_script_labels'])}"
+    )
 
     if data["mixed_script_labels"]:
-        lines.append("Mixed-script labels found: " f"{', '.join(data['mixed_script_labels'])}")
-
+        lines.append(
+            f"Mixed-script labels found: "
+            f"{', '.join(data['mixed_script_labels'])}"
+        )
 
     lines.append("")
     lines.append("---------- Risk Assessment ----------")
-
     lines.append(f"Risk score: {data['risk_score']}/100")
-
     lines.append(f"Risk level: {data['risk_level']}")
 
     if data["risk_reasons"]:
@@ -89,6 +168,8 @@ def generate_report(data):
     else:
         lines.append("Indicators: None")
 
-    lines.append("==================================================")
+    lines.append(
+        "=================================================="
+    )
 
     return "\n".join(lines)

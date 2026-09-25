@@ -27,7 +27,7 @@ def find_special_characters(domain):
     special_characters = []
 
     for character in domain:
-        if not character.isalnum() and character != ".":
+        if not character.isalnum() and character not in ".-":
             special_characters.append(character)
 
     return special_characters

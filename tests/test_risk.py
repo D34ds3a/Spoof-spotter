@@ -21,6 +21,20 @@ class TestRisk(unittest.TestCase):
         self.assertEqual(level, "LOW")
         self.assertTrue(reasons)
 
+    def test_historical_ioc_match(self):
+        score, level, reasons = calculate_risk(
+            approved_match=False,
+            historical_ioc_match=True,
+        )
+
+        self.assertEqual(score, 60)
+        self.assertEqual(level, "HIGH")
+
+        self.assertIn(
+            "Base domain appears in a historical IOC dataset.",
+            reasons
+        )    
+
     def test_similar_domain_with_digit(self):
         score, level, reasons = calculate_risk(
             approved_match=False,

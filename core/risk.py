@@ -11,6 +11,7 @@ NON_ASCII_WEIGHT = 5
 HOMOGLYPH_WEIGHT = 25
 MIXED_SCRIPT_WEIGHT = 25
 PUNYCODE_WEIGHT = 5
+HISTORICAL_IOC_WEIGHT = 50
 
 def get_risk_level(score):
     if score < 25:
@@ -35,6 +36,7 @@ def calculate_risk(
     homoglyphs=None,
     mixed_script_labels=None,
     punycode_detected=False,
+    historical_ioc_match=False,
 ):
     score = 0
     reasons = []
@@ -78,6 +80,10 @@ def calculate_risk(
     if punycode_detected:
         score += PUNYCODE_WEIGHT
         reasons.append("Punycode representation was detected.")
+
+    if historical_ioc_match:
+        score += HISTORICAL_IOC_WEIGHT
+        reasons.append("Base domain appears in a historical IOC dataset.")
 
     score = min(score, 100)
 
