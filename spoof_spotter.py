@@ -37,7 +37,7 @@ from core.threat_intel import (
     get_historical_ioc_details,
 )
  
-
+from core.threatfox import search_ioc
 
 def main():
     print("=========================")
@@ -111,6 +111,8 @@ def main():
     )
 
     historical_ioc_match = bool(historical_ioc_details)
+
+    threatfox_result = search_ioc(base_domain)
    
     base_digits = find_digits(base_domain)
            
@@ -142,6 +144,7 @@ def main():
         mixed_script_labels=mixed_script_labels,
         punycode_detected=punycode_detected,
         historical_ioc_match=historical_ioc_match,
+        threatfox_result=threatfox_result,
     ) 
 
     report_data = {
@@ -160,6 +163,8 @@ def main():
         "historical_ioc_match": historical_ioc_match,
         "historical_ioc_sources": historical_ioc_sources,
         "historical_ioc_details": historical_ioc_details,
+
+        "threatfox_result": threatfox_result,
 
         "base_digits": base_digits,
         "base_special_characters": base_special_characters,

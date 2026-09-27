@@ -33,7 +33,47 @@ class TestRisk(unittest.TestCase):
         self.assertIn(
             "Base domain appears in a historical IOC dataset.",
             reasons
-        )    
+        )
+
+    def test_threatfox_live_match(self):
+        threatfox_result = {
+            "available": True,
+            "matched": True,
+            "results": [
+                {
+                    "confidence": 70,
+                }
+            ],
+        }
+
+        score, level, reasons = calculate_risk(
+            approved_match=False,
+            threatfox_result=threatfox_result,
+        )
+
+        self.assertEqual(score, 60)
+        self.assertEqual(level, "HIGH")
+
+        self.assertIn(
+            "ThreatFox currently returns the base domain "
+            "as a threat-intelligence IOC.",
+            reasons
+        )
+
+    def test_threatfox_no_match(self):
+        threatfox_result = {
+            "available": True,
+            "matched": False,
+            "results": [],
+        }
+
+        score, level, reasons = calculate_risk(
+            approved_match=False,
+            threatfox_result=threatfox_result,
+        )
+
+        self.assertEqual(score, 10)
+        self.assertEqual(level, "LOW")
 
     def test_similar_domain_with_digit(self):
         score, level, reasons = calculate_risk(

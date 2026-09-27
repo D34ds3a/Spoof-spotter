@@ -13,6 +13,10 @@ MIXED_SCRIPT_WEIGHT = 25
 PUNYCODE_WEIGHT = 5
 HISTORICAL_IOC_WEIGHT = 50
 
+THREATFOX_MATCH_WEIGHT = 45
+THREATFOX_MEDIUM_CONFIDENCE_WEIGHT = 5
+THREATFOX_HIGH_CONFIDENCE_WEIGHT = 10
+
 def get_risk_level(score):
     if score < 25:
         return "LOW"
@@ -37,6 +41,7 @@ def calculate_risk(
     mixed_script_labels=None,
     punycode_detected=False,
     historical_ioc_match=False,
+    threatfox_result=None,
 ):
     score = 0
     reasons = []
@@ -84,6 +89,41 @@ def calculate_risk(
     if historical_ioc_match:
         score += HISTORICAL_IOC_WEIGHT
         reasons.append("Base domain appears in a historical IOC dataset.")
+
+    if threatfox_result and threatfox_result.get("matched"):
+        score += THREATFOX_MATCH_WEIGHT
+
+        reasons.append(
+            "ThreatFox currently returns the base domain "
+            "as a threat-intelligence IOC."
+        )
+
+        confidence_values = []
+
+        for finding in threatfox_result.get("results", []):
+            confidence = finding.get("confidence")
+
+            if isinstance(confidence, (int, float)):
+                confidence_values.append(confidence)
+
+        if confidence_values:
+            highest_confidence = max(confidence_values)
+
+            if highest_confidence >= 80:
+                score += THREATFOX_HIGH_CONFIDENCE_WEIGHT
+
+                reasons.append(
+                    "ThreatFox reports high confidence "
+                    "for the IOC match."
+                )
+
+            elif highest_confidence >= 50:
+                score += THREATFOX_MEDIUM_CONFIDENCE_WEIGHT
+
+                reasons.append(
+                    "ThreatFox reports moderate confidence "
+                    "for the IOC match."
+                )
 
     score = min(score, 100)
 

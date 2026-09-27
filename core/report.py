@@ -46,6 +46,123 @@ def generate_report(data):
             "establish current malicious activity."
         )
 
+    threatfox_result = data.get("threatfox_result")
+
+    if threatfox_result is not None:
+        lines.append("")
+        lines.append(
+            "---------- Live Threat Intelligence ----------"
+        )
+
+        lines.append("Source: ThreatFox")
+
+        threatfox_available = threatfox_result.get(
+            "available",
+            False,
+        )
+
+        threatfox_matched = threatfox_result.get(
+            "matched",
+            False,
+        )
+
+        query_status = threatfox_result.get(
+            "query_status",
+            "unknown",
+        )
+
+        lines.append(
+            f"ThreatFox available: "
+            f"{yes_no(threatfox_available)}"
+        )
+
+        status_text = (
+            str(query_status)
+            .replace("_", " ")
+            .title()
+        )
+
+        lines.append(
+            f"ThreatFox status: {status_text}"
+        )
+
+        if threatfox_available:
+            lines.append(
+                f"ThreatFox match: "
+                f"{yes_no(threatfox_matched)}"
+            )
+        else:
+            lines.append(
+                "ThreatFox match: Not checked"
+            )
+
+        if threatfox_matched:
+            for finding in threatfox_result.get(
+                "results",
+                [],
+            ):
+                lines.append(f"IOC: {finding.get('ioc', 'Unknown')}")
+
+                ioc_type = (finding.get("ioc_type") or "Unknown")
+
+                lines.append(f"IOC type: {ioc_type.title()}")
+
+                threat_type = (finding.get("threat_type") or "Unknown")
+
+                threat_type = (
+                    threat_type
+                    .replace("_", " ")
+                    .title()
+                )
+
+                lines.append(f"Threat type: {threat_type}")
+
+                description = finding.get("threat_description")
+
+                if description:
+                    lines.append(f"Threat description: {description}")
+
+                malware = (
+                    finding.get("malware") or "Unknown")
+
+                lines.append(f"Malware: {malware}")
+
+                confidence = finding.get("confidence")
+
+                if confidence is not None:
+                    lines.append(f"Confidence: {confidence}")
+
+                first_seen = (finding.get("first_seen") or "Unknown")
+
+                lines.append(f"First seen: {first_seen}")
+
+                last_seen = (finding.get("last_seen") or "Not provided")
+
+                lines.append(f"Last seen: {last_seen}")
+
+                compromised = finding.get("is_compromised")
+
+                if compromised is True:
+                    compromised_text = "Yes"
+                elif compromised is False:
+                    compromised_text = "No"
+                else:
+                    compromised_text = "Unknown"
+
+                lines.append(f"Compromised host: "f"{compromised_text}")
+
+            lines.append(
+                "Note: A ThreatFox match is a threat-"
+                "intelligence indicator and does not by "
+                "itself establish the current intent or "
+                "ownership of a domain."
+            )
+
+            lines.append(
+                "A compromised host may belong to an "
+                "otherwise legitimate service."
+            )
+
     if not data["approved_match"]:
         lines.append(
             f"Closest approved domain: "
