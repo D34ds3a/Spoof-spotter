@@ -52,7 +52,7 @@ def calculate_risk(
 
     if not approved_match and similar_match:
         score += SIMILAR_DOMAIN_WEIGHT
-        reasons.append("Base domain closely resembles an approved domain.")
+        reasons.append("Base domain closely resembles a reference domain.")
 
     if base_digits:
         score += BASE_DIGIT_WEIGHT

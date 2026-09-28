@@ -14,8 +14,10 @@ from core.domain_checker import (
 
 from core.similarity import (
     find_closest_domain,
-    is_similar_domain,
+    is_similar_score,
 )
+
+from core.reference_domains import load_reference_domains
 
 from core.character_checker import (
     find_digits,
@@ -49,6 +51,7 @@ def main():
     input_type = classify_input(user_input)
 
     approved_domains = load_approved_domains()
+    reference_domains = load_reference_domains()
 
     historical_sources = load_historical_sources()
 
@@ -90,15 +93,12 @@ def main():
         approved_domains
     )
    
-    closest_domain, similarity_score = find_closest_domain(
+    closest_reference_domain, similarity_score = find_closest_domain(
         base_domain,
-        approved_domains
+        reference_domains
     )
            
-    similar_match = is_similar_domain(
-        base_domain,
-        approved_domains
-    )
+    similar_match = is_similar_score(similarity_score)
 
     historical_ioc_sources = find_historical_ioc_sources(
         base_domain,
@@ -156,7 +156,7 @@ def main():
         "base_domain": base_domain,
 
         "approved_match": approved_match,
-        "closest_domain": closest_domain,
+        "closest_reference_domain": closest_reference_domain,
         "similarity_score": similarity_score,
         "similar_match": similar_match,
 

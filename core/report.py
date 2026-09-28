@@ -165,8 +165,8 @@ def generate_report(data):
 
     if not data["approved_match"]:
         lines.append(
-            f"Closest approved domain: "
-            f"{data['closest_domain']}"
+            f"Closest reference domain: "
+            f"{data['closest_reference_domain']}"
         )
         lines.append(
             f"Similarity score: "

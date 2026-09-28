@@ -91,14 +91,26 @@ The ThreatFox unit tests use mocked API responses and do not require a real Auth
 
 ### Domain Analysis
 
-- Approved-domain checking
-- Similarity and typo-squatting detection
+- Approved-domain checking using a separate explicit approved-domain list
+- Similarity and typo-squatting detection against a legitimate reference corpus
+- 10,000-domain Tranco reference dataset
+- Separate approved-domain trust and reference-domain similarity roles
 - ASCII digit detection
 - Domain and subdomain character analysis
 - Unicode character detection
 - Homoglyph detection
 - Mixed-script detection
 - Punycode detection and decoding
+
+### Reference-Domain Intelligence
+
+Spoof Spotter uses a local 10,000-domain subset of the Tranco research-oriented domain ranking as a reference corpus for similarity and typo-squatting analysis.
+
+Reference domains are used only as comparison candidates. Inclusion in the Tranco reference corpus does **not** mean that a domain is approved, trusted, safe, or free from compromise.
+
+The reference corpus is maintained separately from `approved_domains.txt` so that popularity or similarity data cannot automatically establish trust.
+
+Spoof Spotter records the Tranco list source and version information in `data/reference_sources.txt` for provenance and reproducibility.
 
 ### Historical Threat Intelligence
 
@@ -141,7 +153,7 @@ Current risk levels:
 The score can incorporate weighted indicators such as:
 
 - Unapproved domains
-- Similarity to known domains
+- Similarity to legitimate reference domains
 - Suspicious character patterns
 - Unicode and homoglyph indicators
 - Historical IOC matches
@@ -169,13 +181,19 @@ A matched domain may represent malicious infrastructure, or it may be an otherwi
 
 ### Clean Domain Analysis
 
-A known legitimate domain provides a baseline example of Spoof Spotter's local analysis and a successful ThreatFox lookup with no IOC result.
+A known legitimate domain provides a baseline example of Spoof Spotter's approved-domain checking, local analysis, and successful ThreatFox lookup with no IOC result.
 
 ![Clean Microsoft domain analysis](docs/screenshots/microsoft-clean.png)
 
+### Tranco Reference-Domain Similarity Detection
+
+Spoof Spotter compares an unapproved domain against a 10,000-domain Tranco reference corpus. In this example, the altered domain is correctly matched to `microsoft.com` with a 92.3% similarity score.
+
+![Tranco reference-domain similarity detection](docs/screenshots/tranco-similarity.png)
+
 ### Live ThreatFox IOC Detection
 
-A redacted live-IOC example demonstrates Spoof Spotter's ThreatFox integration while avoiding publication of a potentially active malicious domain.
+A redacted live-IOC example demonstrates Spoof Spotter's ThreatFox integration while avoiding publication of potentially active malicious infrastructure.
 
 ![ThreatFox IOC detection](docs/screenshots/threatfox-positive-redacted.png)
 
@@ -189,7 +207,9 @@ spoof_spotter/
 ├── core/
 │   ├── parser.py
 │   ├── domain_checker.py
+│   ├── reference_domains.py
 │   ├── similarity.py
+│   ├── tranco_importer.py
 │   ├── character_checker.py
 │   ├── risk.py
 │   ├── report.py
@@ -198,23 +218,49 @@ spoof_spotter/
 ├── data/
 │   ├── approved_domains.txt
 │   ├── reference_domains.txt
+│   ├── reference_sources.txt
 │   └── historical_iocs/
 │       ├── LabHost_Domains.csv
 │       └── sources.txt
+├── docs/
+│   └── screenshots/
+│       ├── microsoft-clean.png
+│       ├── tranco-similarity.png
+│       └── threatfox-positive-redacted.png
 ├── tests/
 │   ├── test_parser.py
 │   ├── test_domain_checker.py
+│   ├── test_reference_domains.py
 │   ├── test_similarity.py
+│   ├── test_tranco_importer.py
 │   ├── test_character_checker.py
 │   ├── test_risk.py
 │   ├── test_report.py
 │   ├── test_threat_intel.py
 │   └── test_threatfox.py
+├── tools/
+│   ├── benchmark_similarity.py
+│   └── update_reference_domains.py
 ├── requirements.txt
 ├── README.md
 └── LICENSE
 ```
 
+---
+## Similarity Performance
+
+Spoof Spotter currently compares input domains against a local 10,000-domain reference corpus.
+
+During development, the similarity workflow originally performed two complete reference-corpus comparisons for each analysis. The workflow was refactored to calculate the closest-domain similarity once and reuse the resulting score for threshold evaluation.
+
+Local benchmark results:
+
+- Reference domains: 10,000
+- Before optimization: approximately 0.380 seconds
+- After optimization: approximately 0.191 seconds
+- Benchmark reduction: approximately 50%
+
+Benchmark results are system-dependent and are included as development measurements rather than guaranteed performance.
 ---
 
 ## Security and Credential Handling
@@ -231,8 +277,7 @@ spoof_spotter/
 
 Planned improvements include:
 
-- Separate approved domains from legitimate reference domains
-- Expand the legitimate reference-domain dataset for typo-squatting detection
+- Add Google Safe Browsing v5 using privacy-conscious hash-prefix lookups
 - Add freshness-aware threat-intelligence scoring
 - Add configurable risk-scoring policies
 - Add threat-intelligence freshness and expiration reporting
@@ -240,24 +285,22 @@ Planned improvements include:
 - Explore URLhaus integration
 - Add phishing-specific threat-intelligence sources
 - Add RDAP domain-registration context
+- Explore efficient expansion beyond the current 10,000-domain reference corpus
 - Improve CLI formatting and usability
 - Add JSON report export
 - Expand HTML reporting
 - Add additional integration and regression tests
 - Improve documentation and third-party data attribution
-
 ---
 
 ## Project Status
 
 Spoof Spotter is under active development.
 
-Current development includes local spoofing analysis, historical IOC correlation, live ThreatFox intelligence, explainable risk scoring, and automated testing.
+Current development includes local spoofing analysis, separate approved and reference-domain architectures, a 10,000-domain Tranco similarity corpus, historical FBI/IC3 IOC correlation, live ThreatFox intelligence, explainable risk scoring, performance benchmarking, and automated testing.
 
 ## License
 
 Spoof Spotter source code is licensed under the MIT License.
 
-Third-party threat-intelligence data, including FBI/IC3 and abuse.ch data,
-remains subject to the terms, notices, and usage conditions of its respective
-source.
+Third-party datasets and threat-intelligence data, including Tranco, FBI/IC3, and abuse.ch data, remain subject to the terms, notices, and usage conditions of their respective sources.

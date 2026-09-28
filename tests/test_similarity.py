@@ -3,7 +3,7 @@ import unittest
 from core.similarity import (
     calculate_similarity,
     find_closest_domain,
-    is_similar_domain,
+    is_similar_score,
 )
 
 
@@ -26,7 +26,7 @@ class TestSimilarity(unittest.TestCase):
         self.assertGreater(score, 0.80)
 
     def test_find_closest_domain(self):
-        approved_domains = {
+        reference_domains = {
             "google.com",
             "github.com",
             "microsoft.com",
@@ -34,7 +34,7 @@ class TestSimilarity(unittest.TestCase):
 
         closest_domain, score = find_closest_domain(
             "micros0ft.com",
-            approved_domains
+            reference_domains
         )
 
         self.assertEqual(
@@ -45,29 +45,30 @@ class TestSimilarity(unittest.TestCase):
         self.assertGreater(score, 0.80)
 
     def test_similar_domain_detected(self):
-        approved_domains = {
-            "google.com",
-            "microsoft.com",
-        }
+        score = calculate_similarity(
+            "micros0ft.com",
+            "microsoft.com"
+        )
 
         self.assertTrue(
-            is_similar_domain(
-                "micros0ft.com",
-                approved_domains
-            )
+            is_similar_score(score)
         )
+
     def test_unrelated_domain_not_similar(self):
-        approved_domains = {
-            "microsoft.com",
-            "google.com",
-        }
+        score = calculate_similarity(
+            "totallydifferentwebsite.net",
+            "microsoft.com"
+        )
 
         self.assertFalse(
-            is_similar_domain(
-                "totallydifferentwebsite.net",
-                approved_domains
-            )
+            is_similar_score(score)
         )
+
+    def test_similarity_threshold(self):
+        self.assertTrue(
+            is_similar_score(0.80)
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

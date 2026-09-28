@@ -13,7 +13,7 @@ class TestReport(unittest.TestCase):
             "subdomain": "",
             "base_domain": "microsoft.com",
             "approved_match": True,
-            "closest_domain": "microsoft.com",
+            "closest_reference_domain": "microsoft.com",
             "similarity_score": 1.0,
             "similar_match": True,
             "base_digits": [],
@@ -52,7 +52,7 @@ class TestReport(unittest.TestCase):
             "base_domain": "microsoft.com",
 
             "approved_match": True,
-            "closest_domain": "microsoft.com",
+            "closest_reference_domain": "microsoft.com",
             "similarity_score": 1.0,
             "similar_match": True,
 
@@ -96,7 +96,7 @@ def test_historical_ioc_report_details(self):
         "base_domain": "bad-example.com",
 
         "approved_match": False,
-        "closest_domain": "example.com",
+        "closest_reference_domain": "example.com",
         "similarity_score": 0.75,
         "similar_match": False,
 
