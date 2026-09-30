@@ -15,7 +15,7 @@ class TestReport(unittest.TestCase):
             "approved_match": True,
             "closest_reference_domain": "microsoft.com",
             "similarity_score": 1.0,
-            "similar_match": True,
+            "similar_match": False,
             "base_digits": [],
             "base_special_characters": [],
             "subdomain_digits": [],
@@ -50,28 +50,22 @@ class TestReport(unittest.TestCase):
             "hostname": "microsoft.com",
             "subdomain": "",
             "base_domain": "microsoft.com",
-
             "approved_match": True,
             "closest_reference_domain": "microsoft.com",
             "similarity_score": 1.0,
-            "similar_match": True,
-
+            "similar_match": False,
             "base_digits": [],
             "base_special_characters": [],
-
             "subdomain_digits": [],
             "subdomain_special_characters": [],
-
             "punycode_detected": False,
             "decoded_domain": "microsoft.com",
             "unicode_characters": [],
             "homoglyphs": [],
             "mixed_script_labels": [],
-
             "risk_score": 0,
             "risk_level": "LOW",
             "risk_reasons": [],
-
             "historical_ioc_match": False,
             "historical_ioc_sources": [],
             "historical_ioc_details": [],
@@ -86,59 +80,122 @@ class TestReport(unittest.TestCase):
         self.assertNotIn(
             "Subdomain special characters detected:", report)
 
-def test_historical_ioc_report_details(self):
-    data = {
-        "original_input": "bad-example.com",
-        "input_type": "DOMAIN/WEBSITE",
-        "email_address": None,
-        "hostname": "bad-example.com",
-        "subdomain": "",
-        "base_domain": "bad-example.com",
+    def test_historical_ioc_report_details(self):
+        data = {
+            "original_input": "bad-example.com",
+            "input_type": "DOMAIN/WEBSITE",
+            "email_address": None,
+            "hostname": "bad-example.com",
+            "subdomain": "",
+            "base_domain": "bad-example.com",
+            "approved_match": False,
+            "closest_reference_domain": "example.com",
+            "similarity_score": 0.75,
+            "similar_match": False,
+            "base_digits": [],
+            "base_special_characters": [],
+            "subdomain_digits": [],
+            "subdomain_special_characters": [],
+            "punycode_detected": False,
+            "decoded_domain": "bad-example.com",
+            "unicode_characters": [],
+            "homoglyphs": [],
+            "mixed_script_labels": [],
+            "risk_score": 30,
+            "risk_level": "MODERATE",
+            "risk_reasons": [
+                "Base domain does not match an approved domain.",
+                "Base domain appears in a historical IOC dataset.",
+            ],
+            "historical_ioc_match": True,
+            "historical_ioc_sources": [
+                "FBI LabHost FLASH"
+            ],
+            "historical_ioc_details": [
+                {
+                    "source": "FBI LabHost FLASH",
+                    "creation_date": "11/9/2021",
+                    "status": "historical",
+                }
+            ],
+        }
 
-        "approved_match": False,
-        "closest_reference_domain": "example.com",
-        "similarity_score": 0.75,
-        "similar_match": False,
+        report = generate_report(data)
 
-        "base_digits": [],
-        "base_special_characters": [],
-        "subdomain_digits": [],
-        "subdomain_special_characters": [],
+        self.assertIn("Historical IOC match: Yes", report)
 
-        "punycode_detected": False,
-        "decoded_domain": "bad-example.com",
-        "unicode_characters": [],
-        "homoglyphs": [],
-        "mixed_script_labels": [],
+        self.assertIn("FBI LabHost FLASH", report)
 
-        "risk_score": 30,
-        "risk_level": "MODERATE",
-        "risk_reasons": [
-            "Base domain does not match an approved domain.",
-            "Base domain appears in a historical IOC dataset.",
-        ],
+        self.assertIn("11/9/2021", report)
 
-        "historical_ioc_match": True,
-        "historical_ioc_sources": [
-            "FBI LabHost FLASH"
-        ],
-        "historical_ioc_details": [
-            {
-                "source": "FBI LabHost FLASH",
-                "creation_date": "11/9/2021",
-                "status": "historical",
-            }
-        ],
-    }
+    def test_phishtank_privacy_mode_report(
+        self
+    ):
+        data = {
+            "original_input":
+                "https://example.com/login",
+            "input_type": "DOMAIN/WEBSITE",
+            "analysis_mode": "privacy",
+            "email_address": None,
+            "hostname": "example.com",
+            "subdomain": "",
+            "base_domain": "example.com",
 
-    report = generate_report(data)
+            "approved_match": False,
+            "closest_reference_domain":
+                "example.com",
+            "similarity_score": 1.0,
+            "similar_match": False,
 
-    self.assertIn("Historical IOC match: Yes", report)
+            "historical_ioc_match": False,
+            "historical_ioc_sources": [],
+            "historical_ioc_details": [],
 
-    self.assertIn("FBI LabHost FLASH", report)
+            "phishtank_result": {
+                "available": False,
+                "matched": False,
+                "listed": False,
+                "source": "PhishTank",
+                "query_status":
+                    "privacy_mode",
+                "result": None,
+            },
 
-    self.assertIn("11/9/2021", report)
+            "base_digits": [],
+            "base_special_characters": [],
+            "subdomain_digits": [],
+            "subdomain_special_characters": [],
 
+            "punycode_detected": False,
+            "decoded_domain":
+                "example.com",
+            "unicode_characters": [],
+            "homoglyphs": [],
+            "mixed_script_labels": [],
+
+            "risk_score": 10,
+            "risk_level": "LOW",
+            "risk_reasons": [
+                "Base domain does not "
+                "match an approved domain."
+            ],
+        }
+
+        report = generate_report(
+            data
+        )
+
+        self.assertIn(
+            "PhishTank status: "
+            "Privacy Mode",
+            report,
+        )
+
+        self.assertIn(
+            "Privacy Mode prevents "
+            "the submitted URL",
+            report,
+        )
        
 
        

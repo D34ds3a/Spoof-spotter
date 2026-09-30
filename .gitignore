@@ -5,3 +5,8 @@ venv/
 .env
 data/tranco_top_1m.csv.zip
 data/tranco_temp/
+.env
+.env.*
+.secrets/
+credentials*.json
+credentials*.enc

@@ -28,12 +28,13 @@ class TestThreatFox(unittest.TestCase):
         )
 
     def test_missing_auth_key(self):
-        with patch.dict(
-            os.environ,
-            {},
-            clear=True,
+        with patch(
+            "core.threatfox.get_auth_key",
+            return_value="",
         ):
-            result = search_ioc("example.com")
+            result = search_ioc(
+                "example.com"
+            )
 
         self.assertFalse(result["available"])
 

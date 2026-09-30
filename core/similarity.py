@@ -37,3 +37,23 @@ def is_similar_score(
     threshold=DEFAULT_SIMILARITY_THRESHOLD,
 ):
     return similarity_score >= threshold
+
+def is_similar_reference_candidate(
+    base_domain,
+    closest_reference_domain,
+    similarity_score,
+    threshold=DEFAULT_SIMILARITY_THRESHOLD,
+):
+    if not closest_reference_domain:
+        return False
+
+    if (
+        base_domain.lower()
+        == closest_reference_domain.lower()
+    ):
+        return False
+
+    return is_similar_score(
+        similarity_score,
+        threshold,
+    )

@@ -2,6 +2,10 @@ import os
 
 import requests
 
+from core.credentials import (
+    get_credential,
+)
+
 
 THREATFOX_API_URL = "https://threatfox-api.abuse.ch/api/v1/"
 
@@ -9,7 +13,7 @@ THREATFOX_AUTH_ENV = "THREATFOX_AUTH_KEY"
 
 
 def get_auth_key():
-    return os.getenv(THREATFOX_AUTH_ENV)
+    return get_credential("threatfox")
 
 
 def search_ioc(search_term, auth_key=None, timeout=10):

@@ -14,7 +14,7 @@ from core.domain_checker import (
 
 from core.similarity import (
     find_closest_domain,
-    is_similar_score,
+    is_similar_reference_candidate,
 )
 
 from core.reference_domains import load_reference_domains
@@ -41,10 +41,47 @@ from core.threat_intel import (
  
 from core.threatfox import search_ioc
 
+from core.privacy import (
+    STANDARD_MODE,
+    PRIVACY_MODE,
+    allow_external_lookup,
+    service_allowed,
+)
+
+from core.google_safe_browsing import (
+    canonicalize_url,
+    build_hash_candidates,
+)
+
+from core.google_safe_browsing_client import (
+    search_hash_candidates,
+)
+
+from core.phishtank import (
+    check_url,
+)
+
+def choose_analysis_mode():
+    print()
+    print("Analysis mode:")
+    print("1. Standard")
+    print("2. Privacy")
+
+    choice = input(
+        "Select mode [1]: "
+    ).strip()
+
+    if choice == "2":
+        return PRIVACY_MODE
+
+    return STANDARD_MODE
+
 def main():
     print("=========================")
     print("      SPOOF SPOTTER")
     print("=========================")
+
+    analysis_mode = choose_analysis_mode()
 
     user_input = input("\nEnter an email or website: ").strip()
 
@@ -98,7 +135,12 @@ def main():
         reference_domains
     )
            
-    similar_match = is_similar_score(similarity_score)
+    similar_match = (is_similar_reference_candidate(
+        base_domain,
+        closest_reference_domain,
+        similarity_score,
+        )
+    )
 
     historical_ioc_sources = find_historical_ioc_sources(
         base_domain,
@@ -112,7 +154,156 @@ def main():
 
     historical_ioc_match = bool(historical_ioc_details)
 
-    threatfox_result = search_ioc(base_domain)
+    external_lookup_allowed = (allow_external_lookup(hostname))
+
+    threatfox_allowed = (
+        service_allowed(
+            "threatfox",
+            analysis_mode,
+        )
+    )
+
+    if (
+        external_lookup_allowed
+        and threatfox_allowed
+    ):
+        threatfox_result = search_ioc(base_domain)
+
+    else:
+        if not external_lookup_allowed:
+            threatfox_status = ("external_lookup_blocked")
+        else:
+            threatfox_status = ("privacy_mode")
+
+        threatfox_result = {
+            "available": False,
+            "matched": False,
+            "query_status": (
+                threatfox_status
+            ),
+            "results": [],
+        }
+
+    google_allowed = (
+        service_allowed(
+            "google_safe_browsing",
+            analysis_mode,
+        )
+    )
+
+    if (
+        external_lookup_allowed
+        and google_allowed
+    ):
+        if input_type == "email":
+            google_input = hostname
+        else:
+            google_input = user_input
+
+        canonical_google_url = (
+            canonicalize_url(
+                google_input
+            )
+        )
+
+        if canonical_google_url:
+            google_candidates = (
+                build_hash_candidates(
+                    canonical_google_url
+                )
+            )
+
+            google_safe_browsing_result = (
+                search_hash_candidates(
+                    google_candidates
+                )
+            )
+
+        else:
+            google_safe_browsing_result = {
+                "available": False,
+                "matched": False,
+                "query_status": ("invalid_input"),
+                "matches": [],
+                "cache_duration": None,
+                "cache_status": ("not_checked"),
+                "network_request_made": (False),
+            }
+
+    else:
+        if not external_lookup_allowed:
+            google_status = ("external_lookup_blocked")
+        else:
+            google_status = ("privacy_policy_blocked")
+
+        google_safe_browsing_result = {
+            "available": False,
+            "matched": False,
+            "query_status": (
+                google_status
+            ),
+            "matches": [],
+            "cache_duration": None,
+            "cache_status": ("not_checked"),
+            "network_request_made": (False),
+        }
+
+    phishtank_allowed = (
+        service_allowed(
+            "phishtank",
+            analysis_mode,
+        )
+    )
+
+    is_full_url = (
+        user_input.lower().startswith("http://")
+        or user_input.lower().startswith("https://")
+    )
+
+    if input_type == "email":
+        phishtank_result = {
+            "available": False,
+            "matched": False,
+            "listed": False,
+            "source": "PhishTank",
+            "query_status": ("not_applicable_email"),
+            "result": None,
+        }
+
+    elif not is_full_url:
+        phishtank_result = {
+            "available": False,
+            "matched": False,
+            "listed": False,
+            "source": "PhishTank",
+            "query_status": ("full_url_required"),
+            "result": None,
+        }
+
+    elif not external_lookup_allowed:
+        phishtank_result = {
+            "available": False,
+            "matched": False,
+            "listed": False,
+            "source": "PhishTank",
+            "query_status": ("external_lookup_blocked"),
+            "result": None,
+        }
+
+    elif not phishtank_allowed:
+        phishtank_result = {
+            "available": False,
+            "matched": False,
+            "listed": False,
+            "source": "PhishTank",
+            "query_status": ("privacy_mode"),
+            "result": None,
+        }
+
+    else:
+        phishtank_result = check_url(
+            user_input
+        )
    
     base_digits = find_digits(base_domain)
            
@@ -150,6 +341,7 @@ def main():
     report_data = {
         "original_input": user_input,
         "input_type": display_input_type,
+        "analysis_mode": analysis_mode,
         "email_address": email_address,
         "hostname": hostname,
         "subdomain": subdomain,
@@ -165,6 +357,8 @@ def main():
         "historical_ioc_details": historical_ioc_details,
 
         "threatfox_result": threatfox_result,
+        "google_safe_browsing_result": (google_safe_browsing_result),
+        "phishtank_result": (phishtank_result),
 
         "base_digits": base_digits,
         "base_special_characters": base_special_characters,
