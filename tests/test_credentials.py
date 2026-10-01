@@ -121,24 +121,24 @@ class TestCredentials(
     @patch(
         "core.credentials."
         "keyring.get_password",
-        return_value="phishing-key",
+        return_value="virustotal-key",
     )
     @patch.dict(
         os.environ,
         {},
         clear=True,
     )
-    def test_phishtank_keyring_fallback(
+    def test_virustotal_keyring_fallback(
         self,
         mock_get_password,
     ):
         result = get_credential(
-            "phishtank"
+            "virustotal"
         )
 
         self.assertEqual(
             result,
-            "phishing-key",
+            "virustotal-key",
         )
 
     @patch(
@@ -148,22 +148,22 @@ class TestCredentials(
     @patch.dict(
         os.environ,
         {
-            "PHISHTANK_API_KEY":
-            "environment-phishing-key"
+            "VIRUSTOTAL_API_KEY":
+            "environment-virustotal-key"
         },
         clear=True,
     )
-    def test_phishtank_environment_priority(
+    def test_virustotal_environment_priority(
         self,
         mock_get_password,
     ):
         result = get_credential(
-            "phishtank"
+            "virustotal"
         )
 
         self.assertEqual(
             result,
-            "environment-phishing-key",
+            "environment-virustotal-key",
         )
 
         mock_get_password.assert_not_called()

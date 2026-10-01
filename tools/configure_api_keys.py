@@ -24,7 +24,7 @@ from core.credentials import (
 SERVICES = {
     "1": (
         "threatfox",
-        "ThreatFox",
+        "ThreatFox / URLhaus",
     ),
 
     "2": (
@@ -33,9 +33,9 @@ SERVICES = {
     ),
 
     "3": (
-    "phishtank",
-    "PhishTank",
-),
+        "virustotal",
+        "VirusTotal",
+    ),
 }
 
 
@@ -58,9 +58,9 @@ def show_status():
 
 def store_credential():
     print()
-    print("1. ThreatFox")
+    print("1. ThreatFox / URLhaus (abuse.ch Auth-Key)")
     print("2. Google Safe Browsing")
-    print("3. PhishTank")
+    print("3. VirusTotal")
 
     choice = input(
         "Select service: "
@@ -97,9 +97,9 @@ def store_credential():
 
 def remove_credential():
     print()
-    print("1. ThreatFox")
+    print("1. ThreatFox / URLhaus (abuse.ch Auth-Key)")
     print("2. Google Safe Browsing")
-    print("3. PhishTank")
+    print("3. VirusTotal")
 
     choice = input(
         "Select service: "

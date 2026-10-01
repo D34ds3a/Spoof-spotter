@@ -88,7 +88,8 @@ def service_allowed(service_name, mode=STANDARD_MODE):
     if mode == STANDARD_MODE:
         return service_name in {
             "threatfox",
-            "phishtank",
+            "virustotal",
+            "urlhaus",
             "privacy_safe_phishing",
         }
 
@@ -102,6 +103,7 @@ def get_mode_policy(mode=STANDARD_MODE):
             "threatfox_live": False,
             "google_safe_browsing": True,
             "live_phishing": False,
+            "urlhaus_live": False,
             "privacy_safe_phishing": True,
         }
 
@@ -111,14 +113,6 @@ def get_mode_policy(mode=STANDARD_MODE):
         "threatfox_live": True,
         "google_safe_browsing": True,
         "live_phishing": True,
+        "urlhaus_live": True,
         "privacy_safe_phishing": True,
     }
-
-    if mode == STANDARD_MODE:
-        return service_name in {
-           "threatfox",
-            "phishtank",
-            "privacy_safe_phishing",
-        }
-
-        return False

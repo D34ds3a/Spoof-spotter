@@ -117,20 +117,47 @@ class TestPrivacy(unittest.TestCase):
         )
 
 
-    def test_phishtank_allowed_in_standard_mode(self):
+    def test_virustotal_allowed_in_standard_mode(self):
         self.assertTrue(
             service_allowed(
-                "phishtank",
+                "virustotal",
                 STANDARD_MODE,
             )
         )
 
 
-    def test_phishtank_blocked_in_privacy_mode(self):
+    def test_virustotal_blocked_in_privacy_mode(self):
         self.assertFalse(
             service_allowed(
-                "phishtank",
+                "virustotal",
                 PRIVACY_MODE,
+            )
+        )
+
+
+    def test_urlhaus_allowed_in_standard_mode(self):
+        self.assertTrue(
+            service_allowed(
+                "urlhaus",
+                STANDARD_MODE,
+            )
+        )
+
+
+    def test_urlhaus_blocked_in_privacy_mode(self):
+        self.assertFalse(
+            service_allowed(
+                "urlhaus",
+                PRIVACY_MODE,
+            )
+        )
+
+
+    def test_unknown_service_blocked(self):
+        self.assertFalse(
+            service_allowed(
+                "not_a_real_service",
+                STANDARD_MODE,
             )
         )
 
@@ -150,6 +177,7 @@ class TestPrivacy(unittest.TestCase):
         self.assertTrue(policy["threatfox_live"])
         self.assertTrue(policy["google_safe_browsing"])
         self.assertTrue(policy["live_phishing"])
+        self.assertTrue(policy["urlhaus_live"])
 
 
     def test_privacy_policy_blocks_cleartext_services(self):
@@ -157,6 +185,7 @@ class TestPrivacy(unittest.TestCase):
 
         self.assertFalse(policy["threatfox_live"])
         self.assertFalse(policy["live_phishing"])
+        self.assertFalse(policy["urlhaus_live"])
         self.assertTrue(policy["google_safe_browsing"])
         self.assertTrue(policy["privacy_safe_phishing"])
 

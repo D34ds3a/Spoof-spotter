@@ -24,9 +24,9 @@ py -m pip install -r requirements.txt
 
 Spoof Spotter can store supported API credentials in the operating system credential vault through Python `keyring`. Credentials are optional. If a service is unavailable, not configured, blocked by the selected privacy policy, or otherwise cannot be reached, Spoof Spotter continues with the intelligence sources that remain available.
 
-#### ThreatFox Auth-Key
+#### abuse.ch Auth-Key (ThreatFox and URLhaus)
 
-ThreatFox requires a personal abuse.ch Auth-Key for API access.
+ThreatFox and URLhaus are both run by abuse.ch and share one free, personal abuse.ch Auth-Key.
 
 1. Open the [abuse.ch Authentication Portal](https://auth.abuse.ch/).
 2. Sign in or create an abuse.ch account.
@@ -34,7 +34,10 @@ ThreatFox requires a personal abuse.ch Auth-Key for API access.
 4. Do not paste the key into source code, screenshots, issues, or commits.
 5. Store it with Spoof Spotter using the credential setup utility described below.
 
-Official documentation: [ThreatFox Community API](https://threatfox.abuse.ch/api/)
+Official documentation:
+
+- [ThreatFox Community API](https://threatfox.abuse.ch/api/)
+- [URLhaus API](https://urlhaus-api.abuse.ch/)
 
 #### Google Safe Browsing API Key
 
@@ -54,28 +57,24 @@ Google recommends restricting API keys and keeping them out of source code. Safe
 Official documentation:
 
 - [Google Cloud API key management](https://cloud.google.com/docs/authentication/api-keys)
-- [Google Safe Browsing APIs](https://developers.google.com/apis-explorer/#p/safebrowsing/v5/)
+- [Google Safe Browsing APIs](https://developers.google.com/safe-browsing/reference)
 
-#### PhishTank Application Key
+#### VirusTotal API Key
 
-Spoof Spotter includes PhishTank integration for phishing-specific full-URL intelligence.
+Spoof Spotter uses VirusTotal for phishing and URL reputation lookups. VirusTotal combines verdicts from dozens of security vendors, including vendors that specialize in phishing detection.
 
-Normally, obtaining a PhishTank application key requires:
+1. Create a free account at [VirusTotal](https://www.virustotal.com/gui/join-us).
+2. Confirm your email address and sign in.
+3. Open the menu under your username and select **API key**, or go directly to [your API key page](https://www.virustotal.com/gui/my-apikey).
+4. Copy your personal API key.
+5. Store it with Spoof Spotter using the credential setup utility.
 
-1. Complete the free PhishTank registration.
-2. Confirm the registration email.
-3. Sign in to PhishTank.
-4. Open the PhishTank API page.
-5. Copy the application key displayed for the account.
-6. Store it with Spoof Spotter using the credential setup utility.
-
-At the time of this project snapshot, **new PhishTank user registration is temporarily disabled**. Existing members can still sign in. Because a new personal application key could not be obtained during development, Spoof Spotter's PhishTank client is implemented and covered by mocked automated tests, but live application-key validation remains pending.
+The free public API allows 4 lookups per minute and 500 per day, and must not be used in commercial products or services. Spoof Spotter makes at most one VirusTotal lookup per analysis and only reads existing reports. It never submits a URL for a new scan.
 
 Official documentation:
 
-- [PhishTank API Information](https://phishtank.org/api_info.php)
-- [PhishTank FAQ](https://phishtank.org/faq.php)
-- [PhishTank Registration](https://phishtank.org/register.php)
+- [VirusTotal API v3 overview](https://docs.virustotal.com/reference/overview)
+- [VirusTotal Public vs Premium API](https://docs.virustotal.com/reference/public-vs-premium-api)
 
 #### Store Keys in the OS Credential Vault
 
@@ -88,9 +87,9 @@ py tools\configure_api_keys.py
 Use the menu to store or update the credential for the appropriate service:
 
 ```text
-ThreatFox
+ThreatFox / URLhaus (abuse.ch Auth-Key)
 Google Safe Browsing
-PhishTank
+VirusTotal
 ```
 
 The setup utility uses the operating system credential vault through Python `keyring`. The key is not intentionally written into the Spoof Spotter repository.
@@ -104,15 +103,17 @@ Environment variables remain supported for development, CI, and automation and t
 ```text
 THREATFOX_AUTH_KEY
 GOOGLE_SAFE_BROWSING_API_KEY
-PHISHTANK_API_KEY
+VIRUSTOTAL_API_KEY
 ```
+
+`THREATFOX_AUTH_KEY` holds the abuse.ch Auth-Key and is used for both ThreatFox and URLhaus.
 
 Example temporary Windows CMD variables:
 
 ```cmd
 set THREATFOX_AUTH_KEY=YOUR_AUTH_KEY
 set GOOGLE_SAFE_BROWSING_API_KEY=YOUR_API_KEY
-set PHISHTANK_API_KEY=YOUR_API_KEY
+set VIRUSTOTAL_API_KEY=YOUR_API_KEY
 ```
 
 Remove temporary values from the current CMD session when finished:
@@ -120,7 +121,7 @@ Remove temporary values from the current CMD session when finished:
 ```cmd
 set THREATFOX_AUTH_KEY=
 set GOOGLE_SAFE_BROWSING_API_KEY=
-set PHISHTANK_API_KEY=
+set VIRUSTOTAL_API_KEY=
 ```
 
 > **Credential safety:** Never hardcode real API keys in source code. Never commit API keys, `.env` files, credential exports, screenshots containing secrets, or other secret material to GitHub. Review `git diff` and `git diff --cached` before every public commit.
@@ -155,7 +156,8 @@ Standard Mode can use:
 - Historical IOC intelligence
 - ThreatFox live IOC lookups
 - Google Safe Browsing hash-prefix lookups
-- PhishTank full-URL lookups when available
+- VirusTotal URL and domain reputation lookups
+- URLhaus malware-URL and host intelligence
 
 ### Privacy Mode
 
@@ -167,7 +169,7 @@ Privacy Mode:
 - Keeps historical/local intelligence enabled
 - Keeps Google Safe Browsing hash-prefix lookups enabled
 - Blocks cleartext ThreatFox lookups
-- Blocks raw-URL PhishTank lookups
+- Blocks cleartext VirusTotal and URLhaus lookups
 
 Privacy Mode is designed to reduce external disclosure. It should not be interpreted as anonymous browsing or complete network anonymity.
 
@@ -253,28 +255,46 @@ The integration includes:
 
 Google Safe Browsing remains available in both Standard and Privacy modes because the lookup path sends locally generated hash prefixes rather than the submitted URL directly.
 
-#### PhishTank
+#### VirusTotal
 
-Spoof Spotter includes a PhishTank client for phishing-specific URL intelligence.
+Spoof Spotter integrates with the VirusTotal API v3 for phishing and URL reputation intelligence.
 
-PhishTank is treated as a **full-URL intelligence source**, not as a general domain-reputation service and not as an email-address reputation service.
+- Full URLs are checked with a VirusTotal URL report lookup.
+- Bare domains and email domains are checked with a VirusTotal domain report lookup.
 
-The current implementation includes:
+VirusTotal lookups can provide:
 
-- HTTPS-only lookup handling
-- OS-keyring credential support
-- Environment-variable fallback
-- Standard/Privacy policy routing
-- Full-URL input routing
-- Response normalization
-- Rate-limit handling
-- Report integration
-- Mocked automated tests
-- A controlled live-test utility
+- How many security vendors rated the URL or domain malicious, suspicious, harmless, or undetected
+- Which vendors specifically reported phishing
+- The date of the most recent analysis
+- The VirusTotal community reputation score
+- A link to the full VirusTotal report
 
-Raw PhishTank URL lookups are allowed only in Standard Mode. Privacy Mode blocks the lookup because the submitted URL would need to be sent to the external service.
+Spoof Spotter only reads existing VirusTotal reports and never submits new scans. An indicator that VirusTotal has never analyzed is reported as not found, which does not mean it is safe.
 
-Live application-key validation is currently pending. During this development snapshot, new PhishTank user registration was unavailable, so no new personal application key could be obtained. The PhishTank integration should therefore be considered implemented and locally tested, but **not yet live-key validated**.
+Vendor verdicts can disagree, and a single detection may be a false positive, so results are shown with their vendor counts rather than reduced to a simple malicious/clean result.
+
+VirusTotal lookups are allowed in Standard Mode and blocked in Privacy Mode because the submitted URL or domain is sent to VirusTotal.
+
+#### URLhaus
+
+Spoof Spotter integrates with URLhaus by abuse.ch, a database of URLs used to distribute malware.
+
+- Full URLs are checked with a URLhaus URL lookup.
+- Bare domains and email domains are checked with a URLhaus host lookup.
+
+URLhaus lookups can provide:
+
+- URL status (online, offline, or unknown)
+- Threat type, such as malware download
+- Tags describing the malware or campaign
+- For hosts, how many malware URLs were recorded and how many are currently online
+- Spamhaus DBL and SURBL blocklist status
+- A link to the URLhaus reference page
+
+URLhaus uses the same abuse.ch Auth-Key as ThreatFox. It focuses on malware distribution rather than phishing pages, and a listed host may be a legitimate site that was compromised.
+
+URLhaus lookups are allowed in Standard Mode and blocked in Privacy Mode because the submitted URL or domain is sent to abuse.ch.
 
 ---
 
@@ -299,7 +319,7 @@ The score can incorporate weighted indicators such as:
 - Live ThreatFox IOC matches
 - ThreatFox confidence information
 
-PhishTank currently contributes report evidence only. It does not yet change the risk score because live-key validation has not been completed.
+VirusTotal and URLhaus currently contribute report evidence only. They do not yet change the risk score.
 
 Google Safe Browsing is also reported as external intelligence without being treated as a probability of malicious activity.
 
@@ -314,7 +334,8 @@ Current and integrated intelligence sources include:
 - **FBI / IC3 LabHost historical domain data**
 - **ThreatFox by abuse.ch**
 - **Google Safe Browsing v5**
-- **PhishTank** - implemented, live-key validation pending
+- **VirusTotal**
+- **URLhaus by abuse.ch**
 
 Threat-intelligence matches should be interpreted with their source, confidence, freshness, status, and surrounding context.
 
@@ -324,9 +345,9 @@ A matched domain or URL may represent malicious infrastructure, or it may be an 
 
 ## Screenshots
 
-### Clean Domain Analysis
+### Clean Domain Analysis in Privacy Mode
 
-A known legitimate domain provides a baseline example of Spoof Spotter's approved-domain checking and local analysis.
+A known legitimate domain provides a baseline example of Spoof Spotter's approved-domain checking and local analysis in Privacy Mode.
 
 ![Clean Microsoft domain analysis](docs/screenshots/microsoft-clean.png)
 
@@ -336,13 +357,13 @@ Spoof Spotter compares an unapproved domain against a 10,000-domain Tranco refer
 
 ![Tranco reference-domain similarity detection](docs/screenshots/tranco-similarity.png)
 
-### Live ThreatFox IOC Detection
+### IOC Detection
 
-A redacted live-IOC example demonstrates Spoof Spotter's ThreatFox integration while avoiding publication of potentially active malicious infrastructure.
+A redacted IOC example demonstrates Spoof Spotter's ThreatFox, VirusTotal, Google, and URLhaus integration while avoiding publication of potentially active malicious infrastructure.
 
-![ThreatFox IOC detection](docs/screenshots/threatfox-positive-redacted.png)
+![Redacted IOC detection](docs/screenshots/positive-redacted.png)
 
-> The live IOC example is shown for defensive analysis only. Potentially active IOC values and identifying timestamps have been redacted.
+> The IOC example is shown for defensive analysis only. Potentially active IOC values and identifying timestamps have been redacted.
 
 ## Project Structure
 
@@ -366,7 +387,8 @@ spoof_spotter/
 │   ├── google_safe_browsing_client.py
 │   ├── google_safe_browsing_cache.py
 │   ├── google_safe_browsing_protobuf.py
-│   └── phishtank.py
+│   ├── virustotal.py
+│   └── urlhaus.py
 ├── data/
 │   ├── approved_domains.txt
 │   ├── reference_domains.txt
@@ -378,8 +400,7 @@ spoof_spotter/
 │   └── screenshots/
 │       ├── microsoft-clean.png
 │       ├── tranco-similarity.png
-│       ├── threatfox-positive-redacted.png
-│       └── phishtank-positive-redacted.png  # future after live validation
+│       └── positive-redacted.png
 ├── tests/
 │   ├── test_parser.py
 │   ├── test_domain_checker.py
@@ -397,19 +418,18 @@ spoof_spotter/
 │   ├── test_google_safe_browsing_cache.py
 │   ├── test_google_safe_browsing_client.py
 │   ├── test_google_safe_browsing_protobuf.py
-│   └── test_phishtank.py
+│   ├── test_virustotal.py
+│   └── test_urlhaus.py
 ├── tools/
 │   ├── benchmark_similarity.py
 │   ├── update_reference_domains.py
 │   ├── configure_api_keys.py
 │   ├── manual_google_safe_browsing_live.py
-│   └── manual_phishtank_live.py
+│   └── manual_virustotal_urlhaus_live.py
 ├── requirements.txt
 ├── README.md
 └── LICENSE
 ```
-
-> `phishtank-positive-redacted.png` is reserved for a future live-validated screenshot and may not exist yet.
 
 ---
 
@@ -459,11 +479,11 @@ Before committing changes, review both the working tree and staged diff for acci
 
 ## Release Roadmap
 
-Spoof Spotter is approaching feature completion. PhishTank is intended to be the final live threat-intelligence integration for the initial release.
+Spoof Spotter is approaching feature completion. VirusTotal and URLhaus complete the live threat-intelligence integrations planned for the initial release.
 
 Remaining planned work:
 
-- Complete live PhishTank validation when a personal application key becomes available.
+- Decide how VirusTotal and URLhaus findings should contribute to risk scoring.
 - Add locally stored/downloaded phishing intelligence for privacy-aware and offline analysis.
 - Track local-dataset source, version, download time, age, and staleness.
 - Warn when local intelligence is stale and avoid interpreting dataset absence as proof of safety.
@@ -471,7 +491,6 @@ Remaining planned work:
 - Refine final risk weights and explanatory wording after the remaining intelligence path is validated.
 - Expand regression and integration testing around local/downloaded intelligence.
 - Finalize CLI/report formatting and documentation.
-- Update screenshots and third-party data attribution.
 - Perform a final security, credential, and repository review.
 - Tag a stable initial release.
 
@@ -483,7 +502,7 @@ Additional live APIs are intentionally out of scope for the initial release unle
 
 Spoof Spotter is approaching feature completion.
 
-The current implementation includes local spoofing analysis, separate approved and reference-domain architectures, a 10,000-domain Tranco similarity corpus, historical FBI/IC3 IOC correlation, live ThreatFox intelligence, Google Safe Browsing v5 privacy-conscious hash-prefix lookups, Standard and Privacy analysis modes, OS-keyring credential storage, PhishTank integration pending live credential validation, explainable heuristic risk scoring, performance benchmarking, and automated testing.
+The current implementation includes local spoofing analysis, separate approved and reference-domain architectures, a 10,000-domain Tranco similarity corpus, historical FBI/IC3 IOC correlation, live ThreatFox intelligence, Google Safe Browsing v5 privacy-conscious hash-prefix lookups, Standard and Privacy analysis modes, OS-keyring credential storage, VirusTotal URL and domain reputation lookups, URLhaus malware-URL lookups, explainable heuristic risk scoring, performance benchmarking, and automated testing.
 
 Remaining development is focused primarily on local/downloaded intelligence, validation, documentation, testing, and release polish rather than additional live API integrations.
 
@@ -493,4 +512,4 @@ Remaining development is focused primarily on local/downloaded intelligence, val
 
 Spoof Spotter source code is licensed under the MIT License.
 
-Third-party datasets and threat-intelligence data, including Tranco, FBI/IC3, abuse.ch, Google Safe Browsing, and PhishTank data, remain subject to the terms, notices, licenses, and usage conditions of their respective sources.
+Third-party datasets and threat-intelligence data, including Tranco, FBI/IC3, abuse.ch (ThreatFox and URLhaus), Google Safe Browsing, and VirusTotal data, remain subject to the terms, notices, licenses, and usage conditions of their respective sources.

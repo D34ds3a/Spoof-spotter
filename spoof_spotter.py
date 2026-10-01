@@ -57,9 +57,22 @@ from core.google_safe_browsing_client import (
     search_hash_candidates,
 )
 
-from core.phishtank import (
-    check_url,
+from core.virustotal import (
+    lookup as virustotal_lookup,
 )
+
+from core.urlhaus import (
+    lookup as urlhaus_lookup,
+)
+
+def not_checked_result(source, query_status):
+    return {
+        "available": False,
+        "matched": False,
+        "source": source,
+        "query_status": query_status,
+        "lookup_type": None,
+    }
 
 def choose_analysis_mode():
     print()
@@ -248,63 +261,72 @@ def main():
             "network_request_made": (False),
         }
 
-    phishtank_allowed = (
-        service_allowed(
-            "phishtank",
-            analysis_mode,
-        )
-    )
-
+    # VirusTotal and URLhaus receive the submitted URL or domain
+    # in cleartext, so they only run in Standard Mode.
     is_full_url = (
         user_input.lower().startswith("http://")
         or user_input.lower().startswith("https://")
     )
 
-    if input_type == "email":
-        phishtank_result = {
-            "available": False,
-            "matched": False,
-            "listed": False,
-            "source": "PhishTank",
-            "query_status": ("not_applicable_email"),
-            "result": None,
-        }
+    if is_full_url:
+        # The #fragment part never reaches a web server,
+        # so it is not part of the page being checked.
+        url_intel_indicator = user_input.split("#", 1)[0]
+        url_intel_type = "url"
+    else:
+        url_intel_indicator = hostname
+        url_intel_type = "domain"
 
-    elif not is_full_url:
-        phishtank_result = {
-            "available": False,
-            "matched": False,
-            "listed": False,
-            "source": "PhishTank",
-            "query_status": ("full_url_required"),
-            "result": None,
-        }
+    virustotal_allowed = (
+        service_allowed(
+            "virustotal",
+            analysis_mode,
+        )
+    )
 
-    elif not external_lookup_allowed:
-        phishtank_result = {
-            "available": False,
-            "matched": False,
-            "listed": False,
-            "source": "PhishTank",
-            "query_status": ("external_lookup_blocked"),
-            "result": None,
-        }
+    if not external_lookup_allowed:
+        virustotal_result = not_checked_result(
+            "VirusTotal",
+            "external_lookup_blocked",
+        )
 
-    elif not phishtank_allowed:
-        phishtank_result = {
-            "available": False,
-            "matched": False,
-            "listed": False,
-            "source": "PhishTank",
-            "query_status": ("privacy_mode"),
-            "result": None,
-        }
+    elif not virustotal_allowed:
+        virustotal_result = not_checked_result(
+            "VirusTotal",
+            "privacy_mode",
+        )
 
     else:
-        phishtank_result = check_url(
-            user_input
+        virustotal_result = virustotal_lookup(
+            url_intel_indicator,
+            url_intel_type,
         )
-   
+
+    urlhaus_allowed = (
+        service_allowed(
+            "urlhaus",
+            analysis_mode,
+        )
+    )
+
+    if not external_lookup_allowed:
+        urlhaus_result = not_checked_result(
+            "URLhaus",
+            "external_lookup_blocked",
+        )
+
+    elif not urlhaus_allowed:
+        urlhaus_result = not_checked_result(
+            "URLhaus",
+            "privacy_mode",
+        )
+
+    else:
+        urlhaus_result = urlhaus_lookup(
+            url_intel_indicator,
+            url_intel_type,
+        )
+
     base_digits = find_digits(base_domain)
            
     base_special_characters = find_special_characters(base_domain)
@@ -358,7 +380,8 @@ def main():
 
         "threatfox_result": threatfox_result,
         "google_safe_browsing_result": (google_safe_browsing_result),
-        "phishtank_result": (phishtank_result),
+        "virustotal_result": virustotal_result,
+        "urlhaus_result": urlhaus_result,
 
         "base_digits": base_digits,
         "base_special_characters": base_special_characters,

@@ -12,6 +12,7 @@ KEYRING_SERVICE = "Spoof Spotter"
 
 
 CREDENTIALS = {
+    # abuse.ch Auth-Key, shared by ThreatFox and URLhaus.
     "threatfox": {
         "environment": "THREATFOX_AUTH_KEY",
         "username": "threatfox_api_key",
@@ -26,10 +27,10 @@ CREDENTIALS = {
         ),
     },
 
-    "phishtank": {
-    "environment": "PHISHTANK_API_KEY",
-    "username": "phishtank_api_key",
-},
+    "virustotal": {
+        "environment": "VIRUSTOTAL_API_KEY",
+        "username": "virustotal_api_key",
+    },
 }
 
 

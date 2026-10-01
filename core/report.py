@@ -2,6 +2,346 @@ def yes_no(value):
     return "Yes" if value else "No"
 
 
+MAX_LISTED_VENDORS = 5
+
+
+def status_title(value):
+    return (
+        str(value)
+        .replace("_", " ")
+        .title()
+    )
+
+
+def lookup_type_label(lookup_type, domain_label):
+    if lookup_type == "url":
+        return "Full URL"
+
+    if lookup_type == "domain":
+        return domain_label
+
+    return None
+
+
+def add_virustotal_section(lines, result):
+    lines.append("")
+    lines.append(
+        "---------- VirusTotal ----------"
+    )
+
+    lines.append("Source: VirusTotal")
+
+    available = result.get("available", False)
+    matched = result.get("matched", False)
+    status = result.get("query_status", "unknown")
+
+    lines.append(
+        f"VirusTotal available: "
+        f"{yes_no(available)}"
+    )
+
+    lines.append(
+        f"VirusTotal status: "
+        f"{status_title(status)}"
+    )
+
+    lookup_label = lookup_type_label(
+        result.get("lookup_type"),
+        "Domain",
+    )
+
+    if lookup_label:
+        lines.append(
+            f"Lookup type: {lookup_label}"
+        )
+
+    http_status = result.get("http_status")
+
+    if http_status is not None:
+        lines.append(
+            f"VirusTotal HTTP status: "
+            f"{http_status}"
+        )
+
+    error_message = result.get("error_message")
+
+    if error_message:
+        lines.append(
+            f"VirusTotal error: "
+            f"{error_message}"
+        )
+
+    error_type = result.get("error_type")
+
+    if error_type:
+        lines.append(
+            f"VirusTotal network error type: "
+            f"{error_type}"
+        )
+
+    if available:
+        lines.append(
+            f"VirusTotal flagged: "
+            f"{yes_no(matched)}"
+        )
+    else:
+        lines.append(
+            "VirusTotal flagged: Not checked"
+        )
+
+    stats = result.get("stats")
+
+    if status == "ok" and isinstance(stats, dict):
+        lines.append(
+            "Security vendors: "
+            f"{stats.get('malicious', 0)} malicious, "
+            f"{stats.get('suspicious', 0)} suspicious, "
+            f"{stats.get('harmless', 0)} harmless, "
+            f"{stats.get('undetected', 0)} undetected "
+            f"(of {result.get('engines_total', 0)})"
+        )
+
+    phishing_vendors = result.get("phishing_vendors") or []
+
+    if phishing_vendors:
+        shown = ", ".join(
+            phishing_vendors[:MAX_LISTED_VENDORS]
+        )
+
+        hidden = (
+            len(phishing_vendors)
+            - MAX_LISTED_VENDORS
+        )
+
+        if hidden > 0:
+            shown += f" (+{hidden} more)"
+
+        lines.append(
+            f"Vendors reporting phishing: {shown}"
+        )
+
+    last_analysis = result.get("last_analysis_date")
+
+    if last_analysis:
+        lines.append(
+            f"Last analysis: {last_analysis}"
+        )
+
+    reputation = result.get("reputation")
+
+    if reputation is not None:
+        lines.append(
+            f"Community reputation: {reputation}"
+        )
+
+    report_link = result.get("report_link")
+
+    if report_link:
+        lines.append(
+            f"VirusTotal report: {report_link}"
+        )
+
+    if status == "privacy_mode":
+        lines.append(
+            "Note: Privacy Mode prevents the "
+            "submitted URL or domain from being "
+            "sent to VirusTotal."
+        )
+
+    elif status == "missing_api_key":
+        lines.append(
+            "Note: Add a free VirusTotal API key "
+            "with tools/configure_api_keys.py."
+        )
+
+    elif status == "rate_limited":
+        lines.append(
+            "Note: The free VirusTotal API allows "
+            "4 lookups per minute. Wait a minute "
+            "and try again."
+        )
+
+    elif status == "authentication_error":
+        lines.append(
+            "Note: VirusTotal did not accept the "
+            "API key. Check it with "
+            "tools/configure_api_keys.py."
+        )
+
+    elif status == "not_found":
+        lines.append(
+            "Note: VirusTotal has no report for "
+            "this indicator. Absence from "
+            "VirusTotal does not mean it is safe."
+        )
+
+    elif status == "ok":
+        lines.append(
+            "Note: Standard Mode sends the submitted "
+            "URL or domain to VirusTotal over HTTPS. "
+            "Vendor verdicts can disagree, and a "
+            "single detection may be a false positive."
+        )
+
+
+def add_urlhaus_section(lines, result):
+    lines.append("")
+    lines.append(
+        "---------- URLhaus ----------"
+    )
+
+    lines.append("Source: URLhaus (abuse.ch)")
+
+    available = result.get("available", False)
+    matched = result.get("matched", False)
+    status = result.get("query_status", "unknown")
+
+    lines.append(
+        f"URLhaus available: "
+        f"{yes_no(available)}"
+    )
+
+    lines.append(
+        f"URLhaus status: "
+        f"{status_title(status)}"
+    )
+
+    lookup_label = lookup_type_label(
+        result.get("lookup_type"),
+        "Host",
+    )
+
+    if lookup_label:
+        lines.append(
+            f"Lookup type: {lookup_label}"
+        )
+
+    http_status = result.get("http_status")
+
+    if http_status is not None:
+        lines.append(
+            f"URLhaus HTTP status: "
+            f"{http_status}"
+        )
+
+    error_type = result.get("error_type")
+
+    if error_type:
+        lines.append(
+            f"URLhaus network error type: "
+            f"{error_type}"
+        )
+
+    if available:
+        lines.append(
+            f"URLhaus match: "
+            f"{yes_no(matched)}"
+        )
+    else:
+        lines.append(
+            "URLhaus match: Not checked"
+        )
+
+    details = result.get("details")
+
+    if matched and isinstance(details, dict):
+        if result.get("lookup_type") == "url":
+            lines.append(
+                f"URL status: "
+                f"{status_title(details.get('url_status', 'unknown'))}"
+            )
+
+            if details.get("threat"):
+                lines.append(
+                    f"Threat: "
+                    f"{status_title(details['threat'])}"
+                )
+
+            if details.get("date_added"):
+                lines.append(
+                    f"Date added: {details['date_added']}"
+                )
+
+            if details.get("last_online"):
+                lines.append(
+                    f"Last online: {details['last_online']}"
+                )
+
+        else:
+            lines.append(
+                "Malware URLs recorded for host: "
+                f"{details.get('url_count', 0)} "
+                f"({details.get('online_url_count', 0)} "
+                "currently online)"
+            )
+
+            if details.get("first_seen"):
+                lines.append(
+                    f"First seen: {details['first_seen']}"
+                )
+
+            if details.get("threats"):
+                lines.append(
+                    "Threats: "
+                    + ", ".join(
+                        status_title(threat)
+                        for threat in details["threats"]
+                    )
+                )
+
+        if details.get("tags"):
+            lines.append(
+                "Tags: "
+                + ", ".join(details["tags"])
+            )
+
+        if details.get("blocklists"):
+            lines.append(
+                "Blocklists: "
+                + ", ".join(details["blocklists"])
+            )
+
+        if details.get("reference"):
+            lines.append(
+                f"URLhaus reference: "
+                f"{details['reference']}"
+            )
+
+        lines.append(
+            "Note: URLhaus tracks malware "
+            "distribution URLs. A listed host may "
+            "be a legitimate site that was "
+            "compromised."
+        )
+
+    elif status == "privacy_mode":
+        lines.append(
+            "Note: Privacy Mode prevents the "
+            "submitted URL or domain from being "
+            "sent to URLhaus."
+        )
+
+    elif status == "missing_auth_key":
+        lines.append(
+            "Note: URLhaus uses the same abuse.ch "
+            "Auth-Key as ThreatFox."
+        )
+
+    elif status == "authentication_error":
+        lines.append(
+            "Note: URLhaus did not accept the "
+            "abuse.ch Auth-Key. Check it with "
+            "tools/configure_api_keys.py."
+        )
+
+    elif status == "no_results":
+        lines.append(
+            "Note: URLhaus has no record of this "
+            "indicator. Absence from URLhaus does "
+            "not mean it is safe."
+        )
+
+
 def generate_report(data):
     lines = []
 
@@ -496,167 +836,25 @@ def generate_report(data):
             "the submitted URL directly."
         )
 
-    phishtank_result = data.get(
-        "phishtank_result"
+    virustotal_result = data.get(
+        "virustotal_result"
     )
 
-    if phishtank_result is not None:
-        lines.append("")
-        lines.append(
-            "---------- Phishing Intelligence ----------"
+    if virustotal_result is not None:
+        add_virustotal_section(
+            lines,
+            virustotal_result,
         )
 
-        lines.append(
-            "Source: PhishTank"
+    urlhaus_result = data.get(
+        "urlhaus_result"
+    )
+
+    if urlhaus_result is not None:
+        add_urlhaus_section(
+            lines,
+            urlhaus_result,
         )
-
-        available = (
-            phishtank_result.get(
-                "available",
-                False,
-            )
-        )
-
-        matched = (
-            phishtank_result.get(
-                "matched",
-                False,
-            )
-        )
-
-        listed = (
-            phishtank_result.get(
-                "listed",
-                False,
-            )
-        )
-
-        status = (
-            phishtank_result.get(
-                "query_status",
-                "unknown",
-            )
-        )
-
-        status_text = (
-            str(status)
-            .replace("_", " ")
-            .title()
-        )
-
-        lines.append(
-            f"PhishTank available: "
-            f"{yes_no(available)}"
-        )
-
-        lines.append(
-            f"PhishTank status: "
-            f"{status_text}"
-        )
-
-        if available:
-            lines.append(
-                f"URL in database: "
-                f"{yes_no(listed)}"
-            )
-
-            lines.append(
-                f"Verified active phish: "
-                f"{yes_no(matched)}"
-            )
-        else:
-            lines.append(
-                "PhishTank match: "
-                "Not checked"
-            )
-
-        finding = (
-            phishtank_result.get(
-                "result"
-            )
-        )
-
-        if finding:
-            verified = finding.get(
-                "verified",
-                False,
-            )
-
-            valid = finding.get(
-                "valid",
-                False,
-            )
-
-            lines.append(
-                f"Verified: "
-                f"{yes_no(verified)}"
-            )
-
-            lines.append(
-                f"Currently valid: "
-                f"{yes_no(valid)}"
-            )
-
-            phish_id = finding.get(
-                "phish_id"
-            )
-
-            if phish_id is not None:
-                lines.append(
-                    f"PhishTank ID: "
-                    f"{phish_id}"
-                )
-
-            verified_at = finding.get(
-                "verified_at"
-            )
-
-            if verified_at:
-                lines.append(
-                    f"Verified at: "
-                    f"{verified_at}"
-                )
-
-            submitted_at = finding.get(
-                "submitted_at"
-            )
-
-            if submitted_at:
-                lines.append(
-                    f"Submitted at: "
-                    f"{submitted_at}"
-                )
-
-        if status == "privacy_mode":
-            lines.append(
-                "Note: Privacy Mode prevents "
-                "the submitted URL from being "
-                "sent to PhishTank."
-            )
-
-        elif status == (
-            "not_applicable_email"
-        ):
-            lines.append(
-                "Note: PhishTank checks URLs, "
-                "not standalone email addresses."
-            )
-
-        elif status == (
-            "full_url_required"
-        ):
-            lines.append(
-                "Note: PhishTank lookup requires "
-                "a complete URL rather than a "
-                "bare domain."
-            )
-
-        elif available:
-            lines.append(
-                "Note: Standard Mode sends the "
-                "submitted URL to PhishTank over "
-                "HTTPS for database lookup."
-            )
 
     lines.append("")
     lines.append("---------- Risk Assessment ----------")

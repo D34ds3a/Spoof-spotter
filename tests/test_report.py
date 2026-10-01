@@ -128,14 +128,12 @@ class TestReport(unittest.TestCase):
 
         self.assertIn("11/9/2021", report)
 
-    def test_phishtank_privacy_mode_report(
-        self
-    ):
+    def base_data(self, **overrides):
         data = {
             "original_input":
                 "https://example.com/login",
             "input_type": "DOMAIN/WEBSITE",
-            "analysis_mode": "privacy",
+            "analysis_mode": "standard",
             "email_address": None,
             "hostname": "example.com",
             "subdomain": "",
@@ -150,16 +148,6 @@ class TestReport(unittest.TestCase):
             "historical_ioc_match": False,
             "historical_ioc_sources": [],
             "historical_ioc_details": [],
-
-            "phishtank_result": {
-                "available": False,
-                "matched": False,
-                "listed": False,
-                "source": "PhishTank",
-                "query_status":
-                    "privacy_mode",
-                "result": None,
-            },
 
             "base_digits": [],
             "base_special_characters": [],
@@ -181,23 +169,238 @@ class TestReport(unittest.TestCase):
             ],
         }
 
-        report = generate_report(
-            data
+        data.update(overrides)
+
+        return data
+
+    def test_privacy_mode_blocks_virustotal_and_urlhaus(
+        self
+    ):
+        data = self.base_data(
+            analysis_mode="privacy",
+            virustotal_result={
+                "available": False,
+                "matched": False,
+                "source": "VirusTotal",
+                "query_status": "privacy_mode",
+                "lookup_type": None,
+            },
+            urlhaus_result={
+                "available": False,
+                "matched": False,
+                "source": "URLhaus",
+                "query_status": "privacy_mode",
+                "lookup_type": None,
+            },
         )
 
+        report = generate_report(data)
+
         self.assertIn(
-            "PhishTank status: "
-            "Privacy Mode",
+            "VirusTotal status: Privacy Mode",
             report,
         )
 
         self.assertIn(
-            "Privacy Mode prevents "
-            "the submitted URL",
+            "VirusTotal flagged: Not checked",
             report,
         )
-       
 
-       
+        self.assertIn(
+            "URLhaus status: Privacy Mode",
+            report,
+        )
+
+        self.assertIn(
+            "sent to VirusTotal.",
+            report,
+        )
+
+        self.assertIn(
+            "sent to URLhaus.",
+            report,
+        )
+
+    def test_virustotal_phishing_verdict_report(
+        self
+    ):
+        data = self.base_data(
+            virustotal_result={
+                "available": True,
+                "matched": True,
+                "source": "VirusTotal",
+                "query_status": "ok",
+                "lookup_type": "url",
+                "stats": {
+                    "malicious": 7,
+                    "suspicious": 1,
+                    "harmless": 60,
+                    "undetected": 25,
+                    "timeout": 0,
+                },
+                "engines_total": 93,
+                "phishing_vendors": [
+                    "Vendor A",
+                    "Vendor B",
+                    "Vendor C",
+                    "Vendor D",
+                    "Vendor E",
+                    "Vendor F",
+                    "Vendor G",
+                ],
+                "reputation": -15,
+                "last_analysis_date":
+                    "2026-09-30 12:00 UTC",
+                "report_link":
+                    "https://www.virustotal.com/gui/url/abc",
+            },
+        )
+
+        report = generate_report(data)
+
+        self.assertIn(
+            "VirusTotal flagged: Yes",
+            report,
+        )
+
+        self.assertIn(
+            "Lookup type: Full URL",
+            report,
+        )
+
+        self.assertIn(
+            "Security vendors: 7 malicious, "
+            "1 suspicious, 60 harmless, "
+            "25 undetected (of 93)",
+            report,
+        )
+
+        self.assertIn(
+            "Vendors reporting phishing: "
+            "Vendor A, Vendor B, Vendor C, "
+            "Vendor D, Vendor E (+2 more)",
+            report,
+        )
+
+        self.assertIn(
+            "Community reputation: -15",
+            report,
+        )
+
+    def test_virustotal_not_found_report(
+        self
+    ):
+        data = self.base_data(
+            virustotal_result={
+                "available": True,
+                "matched": False,
+                "source": "VirusTotal",
+                "query_status": "not_found",
+                "lookup_type": "domain",
+            },
+        )
+
+        report = generate_report(data)
+
+        self.assertIn(
+            "VirusTotal flagged: No",
+            report,
+        )
+
+        self.assertIn(
+            "Lookup type: Domain",
+            report,
+        )
+
+        self.assertIn(
+            "does not mean it is safe",
+            report,
+        )
+
+    def test_urlhaus_host_match_report(
+        self
+    ):
+        data = self.base_data(
+            urlhaus_result={
+                "available": True,
+                "matched": True,
+                "source": "URLhaus",
+                "query_status": "ok",
+                "lookup_type": "domain",
+                "details": {
+                    "url_count": 12,
+                    "online_url_count": 3,
+                    "first_seen":
+                        "2026-09-01 10:00:00 UTC",
+                    "threats": [
+                        "malware_download"
+                    ],
+                    "tags": [
+                        "exe",
+                        "ClearFake",
+                    ],
+                    "reference":
+                        "https://urlhaus.abuse.ch/host/example.com/",
+                    "blocklists": [
+                        "Spamhaus DBL (abused_legit_malware)"
+                    ],
+                },
+            },
+        )
+
+        report = generate_report(data)
+
+        self.assertIn(
+            "URLhaus match: Yes",
+            report,
+        )
+
+        self.assertIn(
+            "Lookup type: Host",
+            report,
+        )
+
+        self.assertIn(
+            "Malware URLs recorded for host: "
+            "12 (3 currently online)",
+            report,
+        )
+
+        self.assertIn(
+            "Threats: Malware Download",
+            report,
+        )
+
+        self.assertIn(
+            "Blocklists: Spamhaus DBL",
+            report,
+        )
+
+    def test_urlhaus_missing_key_report(
+        self
+    ):
+        data = self.base_data(
+            urlhaus_result={
+                "available": False,
+                "matched": False,
+                "source": "URLhaus",
+                "query_status": "missing_auth_key",
+                "lookup_type": "url",
+            },
+        )
+
+        report = generate_report(data)
+
+        self.assertIn(
+            "URLhaus match: Not checked",
+            report,
+        )
+
+        self.assertIn(
+            "same abuse.ch Auth-Key as ThreatFox",
+            report,
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
