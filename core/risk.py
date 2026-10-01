@@ -17,6 +17,18 @@ THREATFOX_MATCH_WEIGHT = 45
 THREATFOX_MEDIUM_CONFIDENCE_WEIGHT = 5
 THREATFOX_HIGH_CONFIDENCE_WEIGHT = 10
 
+VIRUSTOTAL_ONE_MALICIOUS_WEIGHT = 5
+VIRUSTOTAL_MEDIUM_MALICIOUS_WEIGHT = 10
+VIRUSTOTAL_HIGH_MALICIOUS_WEIGHT = 20
+VIRUSTOTAL_VERY_HIGH_MALICIOUS_WEIGHT = 30
+VIRUSTOTAL_SUSPICIOUS_CONSENSUS_WEIGHT = 5
+VIRUSTOTAL_PHISHING_CONSENSUS_WEIGHT = 10
+
+URLHAUS_ONLINE_URL_WEIGHT = 40
+URLHAUS_OFFLINE_URL_WEIGHT = 25
+URLHAUS_ACTIVE_HOST_WEIGHT = 25
+URLHAUS_HISTORICAL_HOST_WEIGHT = 10
+
 def get_risk_level(score):
     if score < 25:
         return "LOW"
@@ -42,6 +54,8 @@ def calculate_risk(
     punycode_detected=False,
     historical_ioc_match=False,
     threatfox_result=None,
+    virustotal_result=None,
+    urlhaus_result=None,
 ):
     score = 0
     reasons = []
@@ -123,6 +137,151 @@ def calculate_risk(
                 reasons.append(
                     "ThreatFox reports moderate confidence "
                     "for the IOC match."
+                )
+
+    if (
+        virustotal_result
+        and virustotal_result.get("available")
+        and virustotal_result.get("query_status") == "ok"
+    ):
+        stats = virustotal_result.get("stats") or {}
+
+        malicious_count = stats.get("malicious", 0)
+        suspicious_count = stats.get("suspicious", 0)
+
+        if isinstance(malicious_count, bool) or not isinstance(
+            malicious_count,
+            int,
+        ):
+            malicious_count = 0
+
+        if isinstance(suspicious_count, bool) or not isinstance(
+            suspicious_count,
+            int,
+        ):
+            suspicious_count = 0
+
+        malicious_count = max(malicious_count, 0)
+        suspicious_count = max(suspicious_count, 0)
+
+        if malicious_count >= 10:
+            score += VIRUSTOTAL_VERY_HIGH_MALICIOUS_WEIGHT
+            reasons.append(
+                "VirusTotal reports malicious verdicts from "
+                "10 or more security vendors."
+            )
+
+        elif malicious_count >= 5:
+            score += VIRUSTOTAL_HIGH_MALICIOUS_WEIGHT
+            reasons.append(
+                "VirusTotal reports malicious verdicts from "
+                "5 to 9 security vendors."
+            )
+
+        elif malicious_count >= 2:
+            score += VIRUSTOTAL_MEDIUM_MALICIOUS_WEIGHT
+            reasons.append(
+                "VirusTotal reports malicious verdicts from "
+                "2 to 4 security vendors."
+            )
+
+        elif malicious_count == 1:
+            score += VIRUSTOTAL_ONE_MALICIOUS_WEIGHT
+            reasons.append(
+                "VirusTotal reports one malicious vendor verdict."
+            )
+
+        if suspicious_count >= 2:
+            score += VIRUSTOTAL_SUSPICIOUS_CONSENSUS_WEIGHT
+            reasons.append(
+                "VirusTotal reports suspicious verdicts from "
+                "multiple security vendors."
+            )
+
+        phishing_vendors = (
+            virustotal_result.get("phishing_vendors")
+            or []
+        )
+
+        if len(phishing_vendors) >= 2:
+            score += VIRUSTOTAL_PHISHING_CONSENSUS_WEIGHT
+            reasons.append(
+                "Multiple VirusTotal vendors specifically "
+                "report phishing."
+            )
+
+    if (
+        urlhaus_result
+        and urlhaus_result.get("available")
+        and urlhaus_result.get("matched")
+        and urlhaus_result.get("query_status") == "ok"
+    ):
+        lookup_type = urlhaus_result.get("lookup_type")
+        details = urlhaus_result.get("details") or {}
+
+        if lookup_type == "url":
+            url_status = str(
+                details.get("url_status") or ""
+            ).strip().lower()
+
+            if url_status == "online":
+                score += URLHAUS_ONLINE_URL_WEIGHT
+                reasons.append(
+                    "URLhaus currently lists the submitted URL "
+                    "as online malware-distribution infrastructure."
+                )
+
+            else:
+                score += URLHAUS_OFFLINE_URL_WEIGHT
+                reasons.append(
+                    "URLhaus lists the submitted URL as malware-"
+                    "distribution infrastructure."
+                )
+
+        elif lookup_type == "domain":
+            online_url_count = details.get(
+                "online_url_count",
+                0,
+            )
+            url_count = details.get(
+                "url_count",
+                0,
+            )
+
+            if isinstance(online_url_count, bool) or not isinstance(
+                online_url_count,
+                int,
+            ):
+                online_url_count = 0
+
+            if isinstance(url_count, bool) or not isinstance(
+                url_count,
+                int,
+            ):
+                url_count = 0
+
+            online_url_count = max(online_url_count, 0)
+            url_count = max(url_count, 0)
+
+            if online_url_count > 0:
+                score += URLHAUS_ACTIVE_HOST_WEIGHT
+                reasons.append(
+                    "URLhaus reports one or more currently online "
+                    "malware URLs associated with the host."
+                )
+
+            elif url_count > 0:
+                score += URLHAUS_HISTORICAL_HOST_WEIGHT
+                reasons.append(
+                    "URLhaus reports historical malware URLs "
+                    "associated with the host."
+                )
+
+            else:
+                score += URLHAUS_HISTORICAL_HOST_WEIGHT
+                reasons.append(
+                    "URLhaus returns a host-level threat-intelligence "
+                    "match for the submitted host."
                 )
 
     score = min(score, 100)

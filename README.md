@@ -318,10 +318,15 @@ The score can incorporate weighted indicators such as:
 - Historical IOC matches
 - Live ThreatFox IOC matches
 - ThreatFox confidence information
+- VirusTotal malicious-vendor consensus
+- VirusTotal suspicious-vendor and phishing-specific consensus
+- URLhaus URL and host intelligence
 
-VirusTotal and URLhaus currently contribute report evidence only. They do not yet change the risk score.
+VirusTotal findings contribute conservatively to the score based on the number and type of vendor detections. A single malicious verdict receives substantially less weight than broad vendor consensus.
 
-Google Safe Browsing is also reported as external intelligence without being treated as a probability of malicious activity.
+URLhaus findings are weighted according to context. A currently online malware-distribution URL receives stronger weight than historical host-level intelligence.
+
+Harmless, undetected, unavailable, or not-found results do not subtract risk and should not be interpreted as proof of safety.
 
 The score is intended to explain why an input was flagged. It is **not** a probability of malicious activity.
 
@@ -483,7 +488,6 @@ Spoof Spotter is approaching feature completion. VirusTotal and URLhaus complete
 
 Remaining planned work:
 
-- Decide how VirusTotal and URLhaus findings should contribute to risk scoring.
 - Add locally stored/downloaded phishing intelligence for privacy-aware and offline analysis.
 - Track local-dataset source, version, download time, age, and staleness.
 - Warn when local intelligence is stale and avoid interpreting dataset absence as proof of safety.

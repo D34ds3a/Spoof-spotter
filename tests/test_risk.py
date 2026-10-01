@@ -124,5 +124,286 @@ class TestRisk(unittest.TestCase):
         self.assertEqual(score, 100)
         self.assertEqual(level, "CRITICAL")
 
+    def test_virustotal_one_malicious_vendor(self):
+        virustotal_result = {
+            "available": True,
+            "matched": True,
+            "query_status": "ok",
+            "lookup_type": "domain",
+            "stats": {
+                "malicious": 1,
+                "suspicious": 0,
+                "harmless": 60,
+                "undetected": 10,
+                "timeout": 0,
+            },
+            "phishing_vendors": [],
+        }
+
+        score, level, reasons = calculate_risk(
+            approved_match=True,
+            virustotal_result=virustotal_result,
+        )
+
+        self.assertEqual(score, 5)
+        self.assertEqual(level, "LOW")
+
+    def test_virustotal_medium_vendor_consensus(self):
+        virustotal_result = {
+            "available": True,
+            "matched": True,
+            "query_status": "ok",
+            "lookup_type": "domain",
+            "stats": {
+                "malicious": 4,
+                "suspicious": 0,
+                "harmless": 50,
+                "undetected": 10,
+                "timeout": 0,
+            },
+            "phishing_vendors": [],
+        }
+
+        score, level, reasons = calculate_risk(
+            approved_match=True,
+            virustotal_result=virustotal_result,
+        )
+
+        self.assertEqual(score, 10)
+
+    def test_virustotal_high_vendor_consensus(self):
+        virustotal_result = {
+            "available": True,
+            "matched": True,
+            "query_status": "ok",
+            "lookup_type": "domain",
+            "stats": {
+                "malicious": 12,
+                "suspicious": 0,
+                "harmless": 40,
+                "undetected": 10,
+                "timeout": 0,
+            },
+            "phishing_vendors": [],
+        }
+
+        score, level, reasons = calculate_risk(
+            approved_match=True,
+            virustotal_result=virustotal_result,
+        )
+
+        self.assertEqual(score, 30)
+        self.assertEqual(level, "MODERATE")
+
+    def test_virustotal_phishing_consensus_bonus(self):
+        virustotal_result = {
+            "available": True,
+            "matched": True,
+            "query_status": "ok",
+            "lookup_type": "domain",
+            "stats": {
+                "malicious": 3,
+                "suspicious": 0,
+                "harmless": 50,
+                "undetected": 10,
+                "timeout": 0,
+            },
+            "phishing_vendors": [
+                "Vendor A",
+                "Vendor B",
+            ],
+        }
+
+        score, level, reasons = calculate_risk(
+            approved_match=True,
+            virustotal_result=virustotal_result,
+        )
+
+        self.assertEqual(score, 20)
+
+    def test_virustotal_phishing_consensus_bonus(self):
+        virustotal_result = {
+            "available": True,
+            "matched": True,
+            "query_status": "ok",
+            "lookup_type": "domain",
+            "stats": {
+                "malicious": 3,
+                "suspicious": 0,
+                "harmless": 50,
+                "undetected": 10,
+                "timeout": 0,
+            },
+            "phishing_vendors": [
+                "Vendor A",
+                "Vendor B",
+            ],
+        }
+
+        score, level, reasons = calculate_risk(
+            approved_match=True,
+            virustotal_result=virustotal_result,
+        )
+
+        self.assertEqual(score, 20)
+
+def test_virustotal_no_findings_adds_no_risk(self):
+    virustotal_result = {
+        "available": True,
+        "matched": False,
+        "query_status": "ok",
+        "lookup_type": "domain",
+        "stats": {
+            "malicious": 0,
+            "suspicious": 0,
+            "harmless": 65,
+            "undetected": 5,
+            "timeout": 0,
+        },
+        "phishing_vendors": [],
+    }
+
+    score, level, reasons = calculate_risk(
+        approved_match=True,
+        virustotal_result=virustotal_result,
+    )
+
+    self.assertEqual(score, 0) 
+
+def test_urlhaus_online_url_match(self):
+    urlhaus_result = {
+        "available": True,
+        "matched": True,
+        "query_status": "ok",
+        "lookup_type": "url",
+        "details": {
+            "url_status": "online",
+        },
+    }
+
+    score, level, reasons = calculate_risk(
+        approved_match=True,
+        urlhaus_result=urlhaus_result,
+    )
+
+    self.assertEqual(score, 40)
+    self.assertEqual(level, "MODERATE")
+
+def test_urlhaus_offline_url_match(self):
+    urlhaus_result = {
+        "available": True,
+        "matched": True,
+        "query_status": "ok",
+        "lookup_type": "url",
+        "details": {
+            "url_status": "offline",
+        },
+    }
+
+    score, level, reasons = calculate_risk(
+        approved_match=True,
+        urlhaus_result=urlhaus_result,
+    )
+
+    self.assertEqual(score, 25)
+    self.assertEqual(level, "MODERATE")
+
+def test_urlhaus_host_with_active_urls(self):
+    urlhaus_result = {
+        "available": True,
+        "matched": True,
+        "query_status": "ok",
+        "lookup_type": "domain",
+        "details": {
+            "url_count": 8,
+            "online_url_count": 2,
+        },
+    }
+
+    score, level, reasons = calculate_risk(
+        approved_match=True,
+        urlhaus_result=urlhaus_result,
+    )
+
+    self.assertEqual(score, 25)
+
+def test_urlhaus_host_with_historical_urls(self):
+    urlhaus_result = {
+        "available": True,
+        "matched": True,
+        "query_status": "ok",
+        "lookup_type": "domain",
+        "details": {
+            "url_count": 8,
+            "online_url_count": 0,
+        },
+    }
+
+    score, level, reasons = calculate_risk(
+        approved_match=True,
+        urlhaus_result=urlhaus_result,
+    )
+
+    self.assertEqual(score, 10)
+
+def test_external_intel_not_found_adds_no_risk(self):
+    virustotal_result = {
+        "available": True,
+        "matched": False,
+        "query_status": "not_found",
+        "lookup_type": "domain",
+    }
+
+    urlhaus_result = {
+        "available": True,
+        "matched": False,
+        "query_status": "no_results",
+        "lookup_type": "domain",
+    }
+
+    score, level, reasons = calculate_risk(
+        approved_match=True,
+        virustotal_result=virustotal_result,
+        urlhaus_result=urlhaus_result,
+    )
+
+    self.assertEqual(score, 0)
+    self.assertEqual(level, "LOW")
+
+def test_virustotal_and_urlhaus_scores_combine(self):
+    virustotal_result = {
+        "available": True,
+        "matched": True,
+        "query_status": "ok",
+        "lookup_type": "url",
+        "stats": {
+            "malicious": 6,
+            "suspicious": 0,
+            "harmless": 30,
+            "undetected": 10,
+            "timeout": 0,
+        },
+        "phishing_vendors": [],
+    }
+
+    urlhaus_result = {
+        "available": True,
+        "matched": True,
+        "query_status": "ok",
+        "lookup_type": "url",
+        "details": {
+            "url_status": "online",
+        },
+    }
+
+    score, level, reasons = calculate_risk(
+        approved_match=False,
+        virustotal_result=virustotal_result,
+        urlhaus_result=urlhaus_result,
+    )
+
+    self.assertEqual(score, 70)
+    self.assertEqual(level, "HIGH")
+
 if __name__ == "__main__":
     unittest.main()

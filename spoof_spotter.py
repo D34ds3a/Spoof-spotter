@@ -261,16 +261,12 @@ def main():
             "network_request_made": (False),
         }
 
-    # VirusTotal and URLhaus receive the submitted URL or domain
-    # in cleartext, so they only run in Standard Mode.
     is_full_url = (
         user_input.lower().startswith("http://")
         or user_input.lower().startswith("https://")
     )
 
     if is_full_url:
-        # The #fragment part never reaches a web server,
-        # so it is not part of the page being checked.
         url_intel_indicator = user_input.split("#", 1)[0]
         url_intel_type = "url"
     else:
@@ -358,7 +354,10 @@ def main():
         punycode_detected=punycode_detected,
         historical_ioc_match=historical_ioc_match,
         threatfox_result=threatfox_result,
-    ) 
+        virustotal_result=virustotal_result,
+        urlhaus_result=urlhaus_result,
+    )
+
 
     report_data = {
         "original_input": user_input,
