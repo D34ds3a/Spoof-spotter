@@ -126,7 +126,15 @@ set VIRUSTOTAL_API_KEY=
 
 > **Credential safety:** Never hardcode real API keys in source code. Never commit API keys, `.env` files, credential exports, screenshots containing secrets, or other secret material to GitHub. Review `git diff` and `git diff --cached` before every public commit.
 
-### 4. Run Spoof Spotter
+### 4. Download the Local Threat List (Optional)
+
+```cmd
+py tools\update_local_intel.py
+```
+
+This saves fingerprints of recent ThreatFox IOCs so inputs can also be checked offline and in Privacy Mode. It uses the same abuse.ch Auth-Key as ThreatFox and URLhaus. Run it again whenever the report says the local list is stale. See [Local Threat Intelligence (Offline)](#local-threat-intelligence-offline).
+
+### 5. Run Spoof Spotter
 
 ```cmd
 py spoof_spotter.py
@@ -134,7 +142,7 @@ py spoof_spotter.py
 
 Choose an analysis mode, then enter an email address, domain, or website when prompted.
 
-### 5. Run the Automated Test Suite
+### 6. Run the Automated Test Suite
 
 ```cmd
 py -m unittest discover -s tests -v
@@ -154,6 +162,7 @@ Standard Mode can use:
 
 - Local domain analysis
 - Historical IOC intelligence
+- Offline local ThreatFox list
 - ThreatFox live IOC lookups
 - Google Safe Browsing hash-prefix lookups
 - VirusTotal URL and domain reputation lookups
@@ -167,6 +176,7 @@ Privacy Mode:
 
 - Keeps local analysis enabled
 - Keeps historical/local intelligence enabled
+- Keeps the offline local ThreatFox list enabled
 - Keeps Google Safe Browsing hash-prefix lookups enabled
 - Blocks cleartext ThreatFox lookups
 - Blocks cleartext VirusTotal and URLhaus lookups
@@ -214,6 +224,34 @@ Spoof Spotter records the Tranco list source and version information in `data/re
 Spoof Spotter supports historical IOC correlation using the FBI LabHost domain dataset.
 
 Historical IOC matches are treated as strong indicators, but they do not by themselves establish that a domain is currently malicious.
+
+### Local Threat Intelligence (Offline)
+
+Spoof Spotter can keep a local copy of recent ThreatFox intelligence so that inputs can be checked without sending them anywhere.
+
+```cmd
+py tools\update_local_intel.py
+```
+
+The update tool downloads the IOCs that ThreatFox published in the last 7 days using your abuse.ch Auth-Key. Only domain and URL IOCs are kept, and each one is saved as a SHA-256 fingerprint rather than a readable address. The readable list is never written to disk, so the local file cannot be used as a list of malicious websites. Spoof Spotter can only answer whether a submitted input is on the list.
+
+Local checks:
+
+- Make no network request, so they run in both Standard and Privacy Mode and work offline
+- Check the hostname, each parent domain down to the base domain, and full URLs
+- Never flag a whole shared domain because one of its subdomains or URLs is listed
+
+Freshness:
+
+- **Fresh:** less than 24 hours old
+- **Stale:** 24 hours to 7 days old. The list is still used, and the report recommends an update.
+- **Expired:** 7 days or older. The list is not used until it is updated.
+
+Every report shows the local list's status, download time, and number of fingerprints. A failed or empty download keeps the existing list instead of replacing it.
+
+The downloaded list is stored in `data/local_intel/`, which is excluded from Git. Each user downloads their own copy with their own Auth-Key. Absence from the local list does not mean an input is safe.
+
+abuse.ch provides free access for not-for-profit use. Commercial use may require a paid subscription through Spamhaus.
 
 ### Live Threat Intelligence
 
@@ -318,6 +356,7 @@ The score can incorporate weighted indicators such as:
 - Historical IOC matches
 - Live ThreatFox IOC matches
 - ThreatFox confidence information
+- Offline local ThreatFox list matches
 - VirusTotal malicious-vendor consensus
 - VirusTotal suspicious-vendor and phishing-specific consensus
 - URLhaus URL and host intelligence
@@ -325,6 +364,8 @@ The score can incorporate weighted indicators such as:
 VirusTotal findings contribute conservatively to the score based on the number and type of vendor detections. A single malicious verdict receives substantially less weight than broad vendor consensus.
 
 URLhaus findings are weighted according to context. A currently online malware-distribution URL receives stronger weight than historical host-level intelligence.
+
+Local ThreatFox list matches receive more weight when the list is fresh than when it is stale, and an expired list is not used. Because the local list is a copy of ThreatFox data, a local match is not counted again when the live ThreatFox lookup already matched. When the live lookup ran and found nothing for the base domain, the newer live result is used for that domain.
 
 Harmless, undetected, unavailable, or not-found results do not subtract risk and should not be interpreted as proof of safety.
 
@@ -337,7 +378,7 @@ The score is intended to explain why an input was flagged. It is **not** a proba
 Current and integrated intelligence sources include:
 
 - **FBI / IC3 LabHost historical domain data**
-- **ThreatFox by abuse.ch**
+- **ThreatFox by abuse.ch** (live lookups and an offline local list)
 - **Google Safe Browsing v5**
 - **VirusTotal**
 - **URLhaus by abuse.ch**
@@ -350,23 +391,23 @@ A matched domain or URL may represent malicious infrastructure, or it may be an 
 
 ## Screenshots
 
-### Clean Domain Analysis in Privacy Mode
+### Clean Domain Analysis in Standard Mode
 
-A known legitimate domain provides a baseline example of Spoof Spotter's approved-domain checking and local analysis in Privacy Mode.
+A known legitimate domain provides a baseline example. `microsoft.com` matches the approved-domain list, and every intelligence source runs: the local ThreatFox list, live ThreatFox, Google Safe Browsing, VirusTotal, and URLhaus. None reports a match, and the risk score is 0 (LOW).
 
-![Clean Microsoft domain analysis](docs/screenshots/microsoft-clean.png)
+![Clean Microsoft domain analysis in Standard Mode](docs/screenshots/microsoft-clean.png)
 
 ### Tranco Reference-Domain Similarity Detection
 
-Spoof Spotter compares an unapproved domain against a 10,000-domain Tranco reference corpus. In this example, the altered domain is matched to `microsoft.com` with a 92.3% similarity score.
+Spoof Spotter compares an unapproved domain against a 10,000-domain Tranco reference corpus. In this example, the altered domain is matched to `microsoft.com` with a 92.3% similarity score. Together with the digit substitution and broad VirusTotal vendor consensus, including phishing-specific verdicts, this raises the risk score to 90 (CRITICAL).
 
 ![Tranco reference-domain similarity detection](docs/screenshots/tranco-similarity.png)
 
-### IOC Detection
+### Offline IOC Detection in Privacy Mode
 
-A redacted IOC example demonstrates Spoof Spotter's ThreatFox, VirusTotal, Google, and URLhaus integration while avoiding publication of potentially active malicious infrastructure.
+Privacy Mode blocks live ThreatFox, VirusTotal, and URLhaus lookups so the submitted domain is not sent to those services. Google Safe Browsing still runs because it receives only hash prefixes. The offline local ThreatFox list still identifies the domain as a known malware-distribution indicator, entirely on the local computer, and the risk score is 50 (HIGH).
 
-![Redacted IOC detection](docs/screenshots/positive-redacted.png)
+![Offline IOC detection in Privacy Mode](docs/screenshots/positive-redacted.png)
 
 > The IOC example is shown for defensive analysis only. Potentially active IOC values and identifying timestamps have been redacted.
 
@@ -393,14 +434,16 @@ spoof_spotter/
 │   ├── google_safe_browsing_cache.py
 │   ├── google_safe_browsing_protobuf.py
 │   ├── virustotal.py
-│   └── urlhaus.py
+│   ├── urlhaus.py
+│   └── local_intel.py
 ├── data/
 │   ├── approved_domains.txt
 │   ├── reference_domains.txt
 │   ├── reference_sources.txt
-│   └── historical_iocs/
-│       ├── LabHost_Domains.csv
-│       └── sources.txt
+│   ├── historical_iocs/
+│   │   ├── LabHost_Domains.csv
+│   │   └── sources.txt
+│   └── local_intel/            (downloaded, excluded from Git)
 ├── docs/
 │   └── screenshots/
 │       ├── microsoft-clean.png
@@ -424,13 +467,15 @@ spoof_spotter/
 │   ├── test_google_safe_browsing_client.py
 │   ├── test_google_safe_browsing_protobuf.py
 │   ├── test_virustotal.py
-│   └── test_urlhaus.py
+│   ├── test_urlhaus.py
+│   └── test_local_intel.py
 ├── tools/
 │   ├── benchmark_similarity.py
 │   ├── update_reference_domains.py
 │   ├── configure_api_keys.py
 │   ├── manual_google_safe_browsing_live.py
-│   └── manual_virustotal_urlhaus_live.py
+│   ├── manual_virustotal_urlhaus_live.py
+│   └── update_local_intel.py
 ├── requirements.txt
 ├── README.md
 └── LICENSE
@@ -477,6 +522,7 @@ Security requirements:
 - Privacy Mode should block services that require disclosure of cleartext indicators where appropriate.
 - Potentially active malicious URLs should not be opened solely for testing.
 - Live-IOC screenshots should redact active infrastructure or identifying values when appropriate.
+- Downloaded threat intelligence is stored only as SHA-256 fingerprints and is never committed to the repository.
 
 Before committing changes, review both the working tree and staged diff for accidentally exposed secrets.
 
@@ -484,16 +530,12 @@ Before committing changes, review both the working tree and staged diff for acci
 
 ## Release Roadmap
 
-Spoof Spotter is approaching feature completion. VirusTotal and URLhaus complete the live threat-intelligence integrations planned for the initial release.
+Spoof Spotter is approaching feature completion. VirusTotal and URLhaus complete the live threat-intelligence integrations, and the offline local ThreatFox list completes the local intelligence path planned for the initial release.
 
 Remaining planned work:
 
-- Add locally stored/downloaded phishing intelligence for privacy-aware and offline analysis.
-- Track local-dataset source, version, download time, age, and staleness.
-- Warn when local intelligence is stale and avoid interpreting dataset absence as proof of safety.
-- Decide whether locally downloaded feeds should contribute to risk scoring after validation.
-- Refine final risk weights and explanatory wording after the remaining intelligence path is validated.
-- Expand regression and integration testing around local/downloaded intelligence.
+- Validate the local ThreatFox list against live lookups over time.
+- Refine final risk weights and explanatory wording.
 - Finalize CLI/report formatting and documentation.
 - Perform a final security, credential, and repository review.
 - Tag a stable initial release.
@@ -506,9 +548,9 @@ Additional live APIs are intentionally out of scope for the initial release unle
 
 Spoof Spotter is approaching feature completion.
 
-The current implementation includes local spoofing analysis, separate approved and reference-domain architectures, a 10,000-domain Tranco similarity corpus, historical FBI/IC3 IOC correlation, live ThreatFox intelligence, Google Safe Browsing v5 privacy-conscious hash-prefix lookups, Standard and Privacy analysis modes, OS-keyring credential storage, VirusTotal URL and domain reputation lookups, URLhaus malware-URL lookups, explainable heuristic risk scoring, performance benchmarking, and automated testing.
+The current implementation includes local spoofing analysis, separate approved and reference-domain architectures, a 10,000-domain Tranco similarity corpus, historical FBI/IC3 IOC correlation, live ThreatFox intelligence, Google Safe Browsing v5 privacy-conscious hash-prefix lookups, Standard and Privacy analysis modes, OS-keyring credential storage, VirusTotal URL and domain reputation lookups, URLhaus malware-URL lookups, an offline local ThreatFox list with freshness tracking, explainable heuristic risk scoring, performance benchmarking, and automated testing.
 
-Remaining development is focused primarily on local/downloaded intelligence, validation, documentation, testing, and release polish rather than additional live API integrations.
+Remaining development is focused primarily on validation, documentation, testing, and release polish rather than additional intelligence sources.
 
 ---
 

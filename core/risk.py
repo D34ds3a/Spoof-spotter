@@ -29,6 +29,9 @@ URLHAUS_OFFLINE_URL_WEIGHT = 25
 URLHAUS_ACTIVE_HOST_WEIGHT = 25
 URLHAUS_HISTORICAL_HOST_WEIGHT = 10
 
+LOCAL_THREATFOX_FRESH_WEIGHT = 40
+LOCAL_THREATFOX_STALE_WEIGHT = 30
+
 def get_risk_level(score):
     if score < 25:
         return "LOW"
@@ -40,6 +43,68 @@ def get_risk_level(score):
         return "HIGH"
 
     return "CRITICAL"
+
+def scored_local_matches(local_intel_result, threatfox_result):
+    """
+    The local ThreatFox matches that should add to the risk score.
+
+    The local list is a copy of ThreatFox data, so it must not count
+    twice when the live ThreatFox lookup already matched. When the
+    live lookup ran and found nothing for the base domain, its newer
+    answer wins for the base domain, but local matches on a subdomain
+    or full URL still count because the live lookup does not check
+    those.
+    """
+    if not local_intel_result:
+        return []
+
+    if not (
+        local_intel_result.get("available")
+        and local_intel_result.get("matched")
+    ):
+        return []
+
+    if threatfox_result and threatfox_result.get("matched"):
+        return []
+
+    matches = local_intel_result.get("matches") or []
+
+    live_checked = bool(
+        threatfox_result
+        and threatfox_result.get("available")
+    )
+
+    if live_checked:
+        matches = [
+            match
+            for match in matches
+            if match.get("matched_on") != "base_domain"
+        ]
+
+    return matches
+
+
+def local_intel_score(local_intel_result, threatfox_result):
+    """Returns (points, reason) for a local ThreatFox list match."""
+    if not scored_local_matches(
+        local_intel_result,
+        threatfox_result,
+    ):
+        return 0, ""
+
+    if local_intel_result.get("freshness") == "fresh":
+        return (
+            LOCAL_THREATFOX_FRESH_WEIGHT,
+            "The local ThreatFox list (updated within the last "
+            "24 hours) contains this indicator.",
+        )
+
+    return (
+        LOCAL_THREATFOX_STALE_WEIGHT,
+        "The local ThreatFox list contains this indicator, "
+        "but the list is more than 24 hours old.",
+    )
+
 
 def calculate_risk(
     approved_match,
@@ -56,6 +121,7 @@ def calculate_risk(
     threatfox_result=None,
     virustotal_result=None,
     urlhaus_result=None,
+    local_intel_result=None,
 ):
     score = 0
     reasons = []
@@ -283,6 +349,15 @@ def calculate_risk(
                     "URLhaus returns a host-level threat-intelligence "
                     "match for the submitted host."
                 )
+
+    local_points, local_reason = local_intel_score(
+        local_intel_result,
+        threatfox_result,
+    )
+
+    if local_points:
+        score += local_points
+        reasons.append(local_reason)
 
     score = min(score, 100)
 

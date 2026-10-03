@@ -342,6 +342,185 @@ def add_urlhaus_section(lines, result):
         )
 
 
+LOCAL_UPDATE_COMMAND = "py tools\\update_local_intel.py"
+
+LOCAL_MATCHED_ON_LABELS = {
+    "base_domain": "Base domain",
+    "subdomain": "Subdomain",
+    "url": "Full URL",
+}
+
+
+def describe_age(age_hours):
+    if age_hours is None:
+        return ""
+
+    if age_hours < 1:
+        return "less than 1 hour ago"
+
+    if age_hours < 48:
+        hours = int(age_hours)
+        unit = "hour" if hours == 1 else "hours"
+        return f"{hours} {unit} ago"
+
+    days = int(age_hours // 24)
+
+    return f"{days} days ago"
+
+
+def format_utc_timestamp(value):
+    # "2026-10-03T21:50:00Z" -> "2026-10-03 21:50 UTC"
+    text = str(value or "")
+
+    if len(text) >= 16 and "T" in text:
+        return text[:16].replace("T", " ") + " UTC"
+
+    return text
+
+
+def add_local_intel_section(lines, result, threatfox_result=None):
+    lines.append("")
+    lines.append(
+        "---------- Local Threat Intelligence ----------"
+    )
+
+    lines.append(
+        "Source: ThreatFox (local copy of the last 7 days of reports)"
+    )
+
+    available = result.get("available", False)
+    matched = result.get("matched", False)
+    status = result.get("query_status", "unknown")
+    freshness = result.get("freshness")
+
+    if status == "ok" and freshness:
+        list_status = freshness
+    else:
+        list_status = status
+
+    lines.append(
+        f"Local list status: {status_title(list_status)}"
+    )
+
+    downloaded_at = result.get("downloaded_at")
+
+    if downloaded_at:
+        age_text = describe_age(result.get("age_hours"))
+        when = format_utc_timestamp(downloaded_at)
+
+        if age_text:
+            when = f"{when} ({age_text})"
+
+        lines.append(f"Local list downloaded: {when}")
+
+        lines.append(
+            f"Fingerprints in local list: "
+            f"{result.get('entry_count', 0):,}"
+        )
+
+    if available:
+        lines.append(f"Local match: {yes_no(matched)}")
+    else:
+        lines.append("Local match: Not checked")
+
+    for match in result.get("matches") or []:
+        matched_on = LOCAL_MATCHED_ON_LABELS.get(
+            match.get("matched_on"),
+            "Unknown",
+        )
+
+        lines.append(f"Matched on: {matched_on}")
+
+        ioc_type = match.get("ioc_type") or "unknown"
+
+        if ioc_type == "url":
+            ioc_label = "URL"
+        else:
+            ioc_label = ioc_type.title()
+
+        lines.append(f"IOC type: {ioc_label}")
+
+        threat_type = match.get("threat_type") or "unknown"
+        lines.append(f"Threat type: {status_title(threat_type)}")
+
+        description = match.get("threat_description")
+
+        if description:
+            lines.append(f"Threat description: {description}")
+
+        lines.append(
+            f"Malware: {match.get('malware') or 'Unknown'}"
+        )
+
+        confidence = match.get("confidence")
+
+        if confidence is not None:
+            lines.append(f"Confidence: {confidence}")
+
+        lines.append(
+            f"First seen: {match.get('first_seen') or 'Unknown'}"
+        )
+
+        lines.append(
+            f"Last seen: {match.get('last_seen') or 'Not provided'}"
+        )
+
+    if status == "not_downloaded":
+        lines.append(
+            "Note: No local list was found. Run "
+            f"{LOCAL_UPDATE_COMMAND} to download one."
+        )
+
+    elif status == "expired":
+        lines.append(
+            "Note: The local list is more than 7 days old, so it "
+            f"was not used. Run {LOCAL_UPDATE_COMMAND} to refresh it."
+        )
+
+    elif status in ("invalid_file", "invalid_timestamp"):
+        lines.append(
+            "Note: The local list could not be trusted, so it was "
+            f"not used. Run {LOCAL_UPDATE_COMMAND} to download a "
+            "new one."
+        )
+
+    elif freshness == "stale":
+        lines.append(
+            "Note: The local list is more than 24 hours old. Run "
+            f"{LOCAL_UPDATE_COMMAND} to refresh it."
+        )
+
+    if matched and threatfox_result:
+        if threatfox_result.get("matched"):
+            lines.append(
+                "Note: Live ThreatFox also matched, so the local "
+                "match is not counted twice in the risk score."
+            )
+
+        elif threatfox_result.get("available") and any(
+            match.get("matched_on") == "base_domain"
+            for match in result.get("matches") or []
+        ):
+            lines.append(
+                "Note: Live ThreatFox no longer lists the base "
+                "domain, so the local base-domain match is not "
+                "counted in the risk score."
+            )
+
+    if available and not matched:
+        lines.append(
+            "Note: Absence from the local list does not mean the "
+            "indicator is safe."
+        )
+
+    if available:
+        lines.append(
+            "Note: The local list stores SHA-256 fingerprints, not "
+            "readable addresses, and checking it makes no network "
+            "request."
+        )
+
+
 def generate_report(data):
     lines = []
 
@@ -512,6 +691,15 @@ def generate_report(data):
         ) 
 
     threatfox_result = data.get("threatfox_result")
+
+    local_intel_result = data.get("local_intel_result")
+
+    if local_intel_result is not None:
+        add_local_intel_section(
+            lines,
+            local_intel_result,
+            threatfox_result,
+        )
 
     if threatfox_result is not None:
         lines.append("")

@@ -65,6 +65,10 @@ from core.urlhaus import (
     lookup as urlhaus_lookup,
 )
 
+from core.local_intel import (
+    lookup as local_intel_lookup,
+)
+
 def not_checked_result(source, query_status):
     return {
         "available": False,
@@ -273,6 +277,19 @@ def main():
         url_intel_indicator = hostname
         url_intel_type = "domain"
 
+    # The local ThreatFox list is checked on this computer without
+    # any network request, so it runs in every analysis mode.
+    if url_intel_type == "url":
+        local_intel_url = url_intel_indicator
+    else:
+        local_intel_url = None
+
+    local_intel_result = local_intel_lookup(
+        hostname,
+        base_domain,
+        url=local_intel_url,
+    )
+
     virustotal_allowed = (
         service_allowed(
             "virustotal",
@@ -356,6 +373,7 @@ def main():
         threatfox_result=threatfox_result,
         virustotal_result=virustotal_result,
         urlhaus_result=urlhaus_result,
+        local_intel_result=local_intel_result,
     )
 
 
@@ -377,6 +395,7 @@ def main():
         "historical_ioc_sources": historical_ioc_sources,
         "historical_ioc_details": historical_ioc_details,
 
+        "local_intel_result": local_intel_result,
         "threatfox_result": threatfox_result,
         "google_safe_browsing_result": (google_safe_browsing_result),
         "virustotal_result": virustotal_result,

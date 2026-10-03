@@ -402,5 +402,152 @@ class TestReport(unittest.TestCase):
         )
 
 
+    def local_match_result(self, **overrides):
+        result = {
+            "available": True,
+            "matched": True,
+            "source": "Local ThreatFox list",
+            "query_status": "ok",
+            "freshness": "fresh",
+            "downloaded_at": "2026-10-03T19:00:00Z",
+            "age_hours": 3.2,
+            "entry_count": 4812,
+            "matches": [
+                {
+                    "matched_on": "base_domain",
+                    "ioc_type": "domain",
+                    "threat_type": "payload_delivery",
+                    "threat_description": "",
+                    "malware": "ExampleLoader",
+                    "confidence": 75,
+                    "first_seen": "2026-10-01 08:00:00 UTC",
+                    "last_seen": "",
+                }
+            ],
+        }
+
+        result.update(overrides)
+
+        return result
+
+    def test_local_intel_match_report(self):
+        data = self.base_data(
+            local_intel_result=self.local_match_result(),
+        )
+
+        report = generate_report(data)
+
+        self.assertIn("Local Threat Intelligence", report)
+        self.assertIn("Local list status: Fresh", report)
+
+        self.assertIn(
+            "Local list downloaded: 2026-10-03 19:00 UTC (3 hours ago)",
+            report,
+        )
+
+        self.assertIn("Fingerprints in local list: 4,812", report)
+        self.assertIn("Local match: Yes", report)
+        self.assertIn("Matched on: Base domain", report)
+        self.assertIn("Threat type: Payload Delivery", report)
+        self.assertIn("Malware: ExampleLoader", report)
+        self.assertIn("Last seen: Not provided", report)
+        self.assertIn("SHA-256 fingerprints", report)
+
+    def test_local_intel_not_downloaded_report(self):
+        data = self.base_data(
+            local_intel_result={
+                "available": False,
+                "matched": False,
+                "source": "Local ThreatFox list",
+                "query_status": "not_downloaded",
+                "freshness": None,
+                "downloaded_at": None,
+                "age_hours": None,
+                "entry_count": 0,
+                "matches": [],
+            },
+        )
+
+        report = generate_report(data)
+
+        self.assertIn("Local list status: Not Downloaded", report)
+        self.assertIn("Local match: Not checked", report)
+        self.assertIn("py tools\\update_local_intel.py", report)
+
+    def test_local_intel_stale_and_expired_notes(self):
+        stale = generate_report(
+            self.base_data(
+                local_intel_result=self.local_match_result(
+                    freshness="stale",
+                    age_hours=30,
+                ),
+            )
+        )
+
+        self.assertIn("Local list status: Stale", stale)
+        self.assertIn("more than 24 hours old", stale)
+
+        expired = generate_report(
+            self.base_data(
+                local_intel_result=self.local_match_result(
+                    available=False,
+                    matched=False,
+                    query_status="expired",
+                    freshness="expired",
+                    age_hours=200,
+                    matches=[],
+                ),
+            )
+        )
+
+        self.assertIn("Local list status: Expired", expired)
+        self.assertIn("(8 days ago)", expired)
+        self.assertIn("was not used", expired)
+
+    def test_local_intel_explains_live_threatfox_overlap(self):
+        no_longer_listed = generate_report(
+            self.base_data(
+                local_intel_result=self.local_match_result(),
+                threatfox_result={
+                    "available": True,
+                    "matched": False,
+                    "query_status": "no_result",
+                    "results": [],
+                },
+            )
+        )
+
+        self.assertIn(
+            "Live ThreatFox no longer lists the base domain",
+            no_longer_listed,
+        )
+
+        both_matched = generate_report(
+            self.base_data(
+                local_intel_result=self.local_match_result(),
+                threatfox_result={
+                    "available": True,
+                    "matched": True,
+                    "query_status": "ok",
+                    "results": [],
+                },
+            )
+        )
+
+        self.assertIn("not counted twice", both_matched)
+
+    def test_local_intel_no_match_note(self):
+        report = generate_report(
+            self.base_data(
+                local_intel_result=self.local_match_result(
+                    matched=False,
+                    matches=[],
+                ),
+            )
+        )
+
+        self.assertIn("Local match: No", report)
+        self.assertIn("Absence from the local list", report)
+
 if __name__ == "__main__":
     unittest.main()

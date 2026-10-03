@@ -10,3 +10,6 @@ data/tranco_temp/
 .secrets/
 credentials*.json
 credentials*.enc
+
+# Downloaded local threat intelligence (each user downloads their own)
+data/local_intel/
