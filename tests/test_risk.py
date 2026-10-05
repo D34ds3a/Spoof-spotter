@@ -75,6 +75,82 @@ class TestRisk(unittest.TestCase):
         self.assertEqual(score, 10)
         self.assertEqual(level, "LOW")
 
+    def test_google_safe_browsing_match_adds_risk(self):
+        google_result = {
+            "available": True,
+            "matched": True,
+            "query_status": "ok",
+        }
+
+        score, level, reasons = calculate_risk(
+            approved_match=True,
+            google_safe_browsing_result=google_result,
+        )
+
+        self.assertEqual(score, 50)
+        self.assertEqual(level, "HIGH")
+
+        self.assertIn(
+            "Google Safe Browsing reports a locally verified "
+            "full-hash threat match.",
+            reasons,
+        )
+
+    def test_google_safe_browsing_no_match_adds_no_risk(self):
+        google_result = {
+            "available": True,
+            "matched": False,
+            "query_status": "ok",
+        }
+
+        score, level, reasons = calculate_risk(
+            approved_match=True,
+            google_safe_browsing_result=google_result,
+        )
+
+        self.assertEqual(score, 0)
+        self.assertEqual(level, "LOW")
+        self.assertEqual(reasons, [])
+
+    def test_google_safe_browsing_unavailable_adds_no_risk(self):
+        google_result = {
+            "available": False,
+            "matched": False,
+            "query_status": "request_error",
+        }
+
+        score, level, reasons = calculate_risk(
+            approved_match=True,
+            google_safe_browsing_result=google_result,
+        )
+
+        self.assertEqual(score, 0)
+        self.assertEqual(level, "LOW")
+        self.assertEqual(reasons, [])
+
+    def test_google_safe_browsing_multiple_threat_types_count_once(self):
+        google_result = {
+            "available": True,
+            "matched": True,
+            "query_status": "ok",
+            "matches": [
+                {
+                    "threat_types": [
+                        "MALWARE",
+                        "POTENTIALLY_HARMFUL_APPLICATION",
+                    ],
+                }
+            ],
+        }
+
+        score, level, reasons = calculate_risk(
+            approved_match=True,
+            google_safe_browsing_result=google_result,
+        )
+
+        self.assertEqual(score, 50)
+        self.assertEqual(level, "HIGH")
+
     def test_similar_domain_with_digit(self):
         score, level, reasons = calculate_risk(
             approved_match=False,

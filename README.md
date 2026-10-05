@@ -357,6 +357,7 @@ The score can incorporate weighted indicators such as:
 - Live ThreatFox IOC matches
 - ThreatFox confidence information
 - Offline local ThreatFox list matches
+- Google Safe Browsing verified full-hash threat matches
 - VirusTotal malicious-vendor consensus
 - VirusTotal suspicious-vendor and phishing-specific consensus
 - URLhaus URL and host intelligence
@@ -535,7 +536,6 @@ Spoof Spotter is approaching feature completion. VirusTotal and URLhaus complete
 Remaining planned work:
 
 - Validate the local ThreatFox list against live lookups over time.
-- Refine final risk weights and explanatory wording.
 - Finalize CLI/report formatting and documentation.
 - Perform a final security, credential, and repository review.
 - Tag a stable initial release.

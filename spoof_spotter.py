@@ -371,6 +371,7 @@ def main():
         punycode_detected=punycode_detected,
         historical_ioc_match=historical_ioc_match,
         threatfox_result=threatfox_result,
+        google_safe_browsing_result=google_safe_browsing_result,
         virustotal_result=virustotal_result,
         urlhaus_result=urlhaus_result,
         local_intel_result=local_intel_result,

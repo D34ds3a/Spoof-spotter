@@ -17,6 +17,8 @@ THREATFOX_MATCH_WEIGHT = 45
 THREATFOX_MEDIUM_CONFIDENCE_WEIGHT = 5
 THREATFOX_HIGH_CONFIDENCE_WEIGHT = 10
 
+GOOGLE_SAFE_BROWSING_MATCH_WEIGHT = 50
+
 VIRUSTOTAL_ONE_MALICIOUS_WEIGHT = 5
 VIRUSTOTAL_MEDIUM_MALICIOUS_WEIGHT = 10
 VIRUSTOTAL_HIGH_MALICIOUS_WEIGHT = 20
@@ -119,6 +121,7 @@ def calculate_risk(
     punycode_detected=False,
     historical_ioc_match=False,
     threatfox_result=None,
+    google_safe_browsing_result=None,
     virustotal_result=None,
     urlhaus_result=None,
     local_intel_result=None,
@@ -275,6 +278,19 @@ def calculate_risk(
                 "Multiple VirusTotal vendors specifically "
                 "report phishing."
             )
+
+    if (
+        google_safe_browsing_result
+        and google_safe_browsing_result.get("available")
+        and google_safe_browsing_result.get("query_status") == "ok"
+        and google_safe_browsing_result.get("matched")
+    ):
+        score += GOOGLE_SAFE_BROWSING_MATCH_WEIGHT
+
+        reasons.append(
+            "Google Safe Browsing reports a locally verified "
+            "full-hash threat match."
+        )
 
     if (
         urlhaus_result
