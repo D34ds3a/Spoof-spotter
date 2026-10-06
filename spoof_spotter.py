@@ -78,20 +78,60 @@ def not_checked_result(source, query_status):
         "lookup_type": None,
     }
 
+MODE_CHOICES = {
+    "": STANDARD_MODE,
+    "1": STANDARD_MODE,
+    "standard": STANDARD_MODE,
+    "2": PRIVACY_MODE,
+    "privacy": PRIVACY_MODE,
+}
+
 def choose_analysis_mode():
     print()
     print("Analysis mode:")
     print("1. Standard")
     print("2. Privacy")
 
-    choice = input(
-        "Select mode [1]: "
-    ).strip()
+    while True:
+        choice = input(
+            "Select mode [1]: "
+        ).strip().lower()
 
-    if choice == "2":
-        return PRIVACY_MODE
+        if choice in MODE_CHOICES:
+            return MODE_CHOICES[choice]
 
-    return STANDARD_MODE
+        print("Please enter 1 for Standard or 2 for Privacy.")
+
+FULL_URL_WARNING = (
+    "Standard Mode may send the complete URL to VirusTotal and URLhaus.\n"
+    "The URL may contain credentials, private query tokens, reset links,\n"
+    "session identifiers, or other sensitive information."
+)
+
+FULL_URL_CONFIRMATIONS = {
+    "y",
+    "yes",
+}
+
+def confirm_full_url_disclosure():
+    print()
+    print(FULL_URL_WARNING)
+
+    answer = input(
+        "Continue with full-URL external lookups? [y/N]: "
+    ).strip().lower()
+
+    return answer in FULL_URL_CONFIRMATIONS
+
+def user_declined_result(source):
+    result = not_checked_result(
+        source,
+        "user_declined",
+    )
+
+    result["lookup_type"] = "url"
+
+    return result
 
 def main():
     print("=========================")
@@ -161,17 +201,50 @@ def main():
 
     historical_ioc_sources = find_historical_ioc_sources(
         base_domain,
-        historical_sources
+        historical_sources,
+        hostname=hostname,
     )
 
     historical_ioc_details = get_historical_ioc_details(
         base_domain,
-        historical_sources
+        historical_sources,
+        hostname=hostname,
     )
 
     historical_ioc_match = bool(historical_ioc_details)
 
-    external_lookup_allowed = (allow_external_lookup(hostname))
+    external_lookup_allowed = (
+        bool(base_domain)
+        and allow_external_lookup(hostname)
+    )
+
+    is_full_url = (
+        user_input.lower().startswith("http://")
+        or user_input.lower().startswith("https://")
+    )
+
+    if is_full_url:
+        url_intel_indicator = user_input.split("#", 1)[0]
+        url_intel_type = "url"
+    else:
+        url_intel_indicator = hostname
+        url_intel_type = "domain"
+
+    full_url_lookup_planned = (
+        external_lookup_allowed
+        and url_intel_type == "url"
+        and (
+            service_allowed("virustotal", analysis_mode)
+            or service_allowed("urlhaus", analysis_mode)
+        )
+    )
+
+    full_url_disclosure_confirmed = False
+
+    if full_url_lookup_planned:
+        full_url_disclosure_confirmed = (
+            confirm_full_url_disclosure()
+        )
 
     threatfox_allowed = (
         service_allowed(
@@ -265,20 +338,6 @@ def main():
             "network_request_made": (False),
         }
 
-    is_full_url = (
-        user_input.lower().startswith("http://")
-        or user_input.lower().startswith("https://")
-    )
-
-    if is_full_url:
-        url_intel_indicator = user_input.split("#", 1)[0]
-        url_intel_type = "url"
-    else:
-        url_intel_indicator = hostname
-        url_intel_type = "domain"
-
-    # The local ThreatFox list is checked on this computer without
-    # any network request, so it runs in every analysis mode.
     if url_intel_type == "url":
         local_intel_url = url_intel_indicator
     else:
@@ -309,6 +368,14 @@ def main():
             "privacy_mode",
         )
 
+    elif (
+        url_intel_type == "url"
+        and not full_url_disclosure_confirmed
+    ):
+        virustotal_result = user_declined_result(
+            "VirusTotal"
+        )
+
     else:
         virustotal_result = virustotal_lookup(
             url_intel_indicator,
@@ -332,6 +399,14 @@ def main():
         urlhaus_result = not_checked_result(
             "URLhaus",
             "privacy_mode",
+        )
+
+    elif (
+        url_intel_type == "url"
+        and not full_url_disclosure_confirmed
+    ):
+        urlhaus_result = user_declined_result(
+            "URLhaus"
         )
 
     else:

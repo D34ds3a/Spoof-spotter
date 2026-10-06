@@ -1,6 +1,7 @@
 import unittest
 
 from core.parser import (
+    parse_domain,
     validate_email,
     validate_domain,
     extract_domain_parts,
@@ -54,6 +55,26 @@ class TestParser(unittest.TestCase):
 
         self.assertEqual(subdomain, "store")
         self.assertEqual(base_domain, "example.co.uk")
+
+
+    def test_bracketed_host_does_not_crash(self):
+        self.assertEqual(parse_domain("http://[1.2.3.4]/"), "")
+        self.assertEqual(parse_domain("http://[::1"), "")
+        self.assertFalse(validate_domain("http://[1.2.3.4]/"))
+
+    def test_email_domain_must_be_a_plain_hostname(self):
+        self.assertFalse(validate_email("alice@example.net?x=1"))
+        self.assertFalse(validate_email("alice@example.net:8080"))
+        self.assertFalse(validate_email("alice@example.net#x"))
+        self.assertFalse(validate_email("alice@[1.2.3.4]"))
+        self.assertTrue(validate_email("Alice@Example.net"))
+
+    def test_extract_domain_parts_works_offline(self):
+        self.assertEqual(
+            extract_domain_parts("login.example.co.uk"),
+            ("login", "example.co.uk"),
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

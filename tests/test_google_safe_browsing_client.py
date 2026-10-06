@@ -18,6 +18,7 @@ from core.google_safe_browsing_cache import (
 
 from core.google_safe_browsing_client import (
     GOOGLE_HASHES_SEARCH_URL,
+    has_enforceable_match,
     GoogleSafeBrowsingHttpError,
     parse_cache_duration,
     request_full_hashes,
@@ -26,8 +27,6 @@ from core.google_safe_browsing_client import (
 )
 
 
-# Tiny protobuf writer so tests can build
-# the same binary replies Google sends.
 def encode_varint(value):
     output = bytearray()
 
@@ -61,16 +60,13 @@ def protobuf_reply(
     threat_type,
     cache_seconds,
 ):
-    # FullHashDetail{threat_type}
     detail = encode_field(1, threat_type)
 
-    # FullHash{full_hash, full_hash_details}
     full_hash_message = (
         encode_field(1, full_hash)
         + encode_field(2, detail)
     )
 
-    # SearchHashesResponse{full_hashes, cache_duration}
     return (
         encode_field(1, full_hash_message)
         + encode_field(
@@ -105,8 +101,6 @@ class TestGoogleSafeBrowsingClient(
         payload=None,
         side_effect=None,
     ):
-        # request_full_hashes() returns the
-        # already-decoded reply as a dict.
         if side_effect is not None:
             mock_request.side_effect = (
                 side_effect
@@ -606,8 +600,6 @@ class TestGoogleSafeBrowsingClient(
             },
         )
 
-        # The key travels in a header,
-        # never in the URL.
         self.assertEqual(
             kwargs["headers"][
                 "x-goog-api-key"
@@ -615,7 +607,6 @@ class TestGoogleSafeBrowsingClient(
             "fake-test-key",
         )
 
-        # No JSON output format is requested.
         self.assertNotIn(
             "alt",
             kwargs["params"],
@@ -678,7 +669,6 @@ class TestGoogleSafeBrowsingClient(
 
         candidate = candidates[0]
 
-        # 2 = SOCIAL_ENGINEERING
         mock_get.return_value = (
             fake_http_response(
                 200,
@@ -723,8 +713,6 @@ class TestGoogleSafeBrowsingClient(
             ],
         )
 
-        # The answer is cached, so a second
-        # lookup never touches the network.
         second = search_hash_candidates(
             candidates,
             api_key="fake-test-key",
@@ -775,6 +763,68 @@ class TestGoogleSafeBrowsingClient(
             result["query_status"],
             "invalid_response",
         )
+
+
+    def reply_for_first_candidate(self, mock_request, details):
+        candidates = build_hash_candidates("http://example.com/")
+
+        full_hash_b64 = base64.b64encode(
+            candidates[0]["full_hash"]
+        ).decode("ascii")
+
+        full_hash = {"fullHash": full_hash_b64}
+
+        if details is not None:
+            full_hash["fullHashDetails"] = details
+
+        self.configure_google_mock(
+            mock_request,
+            payload={
+                "fullHashes": [full_hash],
+                "cacheDuration": "300s",
+            },
+        )
+
+        return search_hash_candidates(
+            candidates,
+            api_key="fake-test-key",
+            cache=SafeBrowsingCache(),
+        )
+
+    @patch("core.google_safe_browsing_client.request_full_hashes")
+    def test_full_hash_without_valid_details_is_not_a_match(self, mock_request):
+        for details in (None, [], [{"threatType": "NOT_A_REAL_TYPE"}]):
+            result = self.reply_for_first_candidate(mock_request, details)
+
+            self.assertFalse(result["matched"], details)
+            self.assertEqual(result["matches"], [])
+
+    @patch("core.google_safe_browsing_client.request_full_hashes")
+    def test_canary_match_is_reported_but_not_enforceable(self, mock_request):
+        result = self.reply_for_first_candidate(
+            mock_request,
+            [{"threatType": "SOCIAL_ENGINEERING", "attributes": ["CANARY"]}],
+        )
+
+        self.assertTrue(result["matched"])
+        self.assertFalse(has_enforceable_match(result))
+
+    def test_has_enforceable_match(self):
+        def result(*details):
+            return {"matches": [{"details": list(details)}]}
+
+        self.assertTrue(has_enforceable_match(result({"threatType": "MALWARE", "attributes": []})))
+        self.assertFalse(has_enforceable_match(result({"threatType": "MALWARE", "attributes": ["FRAME_ONLY"]})))
+        self.assertTrue(
+            has_enforceable_match(
+                result(
+                    {"threatType": "MALWARE", "attributes": ["CANARY"]},
+                    {"threatType": "MALWARE", "attributes": []},
+                )
+            )
+        )
+        self.assertFalse(has_enforceable_match({}))
+        self.assertFalse(has_enforceable_match(None))
 
 
 if __name__ == "__main__":

@@ -150,7 +150,6 @@ class TestVirusTotalLookup(
             f"{url_identifier(url)}",
         )
 
-        # The key travels in a header, never in the URL.
         self.assertEqual(
             kwargs["headers"]["x-apikey"],
             "test-key",

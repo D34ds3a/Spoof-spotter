@@ -1,3 +1,7 @@
+from core.google_safe_browsing_client import (
+    has_enforceable_match,
+)
+
 UNAPPROVED_DOMAIN_WEIGHT = 10
 SIMILAR_DOMAIN_WEIGHT = 30
 
@@ -171,7 +175,7 @@ def calculate_risk(
 
     if historical_ioc_match:
         score += HISTORICAL_IOC_WEIGHT
-        reasons.append("Base domain appears in a historical IOC dataset.")
+        reasons.append("The domain appears in a historical IOC dataset.")
 
     if threatfox_result and threatfox_result.get("matched"):
         score += THREATFOX_MATCH_WEIGHT
@@ -284,6 +288,7 @@ def calculate_risk(
         and google_safe_browsing_result.get("available")
         and google_safe_browsing_result.get("query_status") == "ok"
         and google_safe_browsing_result.get("matched")
+        and has_enforceable_match(google_safe_browsing_result)
     ):
         score += GOOGLE_SAFE_BROWSING_MATCH_WEIGHT
 

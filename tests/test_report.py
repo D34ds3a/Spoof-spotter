@@ -549,5 +549,60 @@ class TestReport(unittest.TestCase):
         self.assertIn("Local match: No", report)
         self.assertIn("Absence from the local list", report)
 
+    def test_historical_subdomain_match_shows_matched_domain(self):
+        report = generate_report(
+            self.base_data(
+                historical_ioc_match=True,
+                historical_ioc_sources=["FBI LabHost FLASH"],
+                historical_ioc_details=[
+                    {
+                        "source": "FBI LabHost FLASH",
+                        "domain": "login.example.com",
+                        "creation_date": "1/2/2024",
+                        "status": "historical",
+                    }
+                ],
+            )
+        )
+
+        self.assertIn("Matched domain: login.example.com", report)
+
+    def google_report(self, *details):
+        return generate_report(
+            self.base_data(
+                google_safe_browsing_result={
+                    "available": True,
+                    "matched": True,
+                    "query_status": "ok",
+                    "matches": [
+                        {
+                            "expression": "example.com/",
+                            "details": list(details),
+                        }
+                    ],
+                    "cache_status": "miss",
+                    "network_request_made": True,
+                    "cache_duration": "300s",
+                },
+            )
+        )
+
+    def test_google_canary_match_is_explained(self):
+        report = self.google_report(
+            {"threatType": "SOCIAL_ENGINEERING", "attributes": ["CANARY"]},
+        )
+
+        self.assertIn("Google full-hash match: Yes", report)
+        self.assertIn("Google threat attributes: CANARY", report)
+        self.assertIn("shown but not scored", report)
+
+    def test_google_enforceable_match_has_no_canary_note(self):
+        report = self.google_report(
+            {"threatType": "MALWARE", "attributes": []},
+        )
+
+        self.assertNotIn("shown but not scored", report)
+
+
 if __name__ == "__main__":
     unittest.main()

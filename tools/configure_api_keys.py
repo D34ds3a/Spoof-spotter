@@ -14,6 +14,10 @@ if str(PROJECT_ROOT) not in sys.path:
     )
 
 
+from keyring.errors import (
+    KeyringError,
+)
+
 from core.credentials import (
     delete_credential,
     get_credential_source,
@@ -84,10 +88,19 @@ def store_credential():
         print("No key entered.")
         return
 
-    set_credential(
-        name,
-        value,
-    )
+    try:
+        set_credential(
+            name,
+            value,
+        )
+
+    except KeyringError as error:
+        print(
+            "The OS credential vault is not available "
+            f"({type(error).__name__}). The key was not stored. "
+            "See the README for the environment-variable alternative."
+        )
+        return
 
     print(
         f"{label} key stored "
@@ -114,6 +127,13 @@ def remove_credential():
         return
 
     name, label = service
+
+    if get_credential_source(name) == "unavailable":
+        print(
+            "The OS credential vault is not available, "
+            "so no key could be removed."
+        )
+        return
 
     removed = delete_credential(
         name

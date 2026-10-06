@@ -140,7 +140,7 @@ This saves fingerprints of recent ThreatFox IOCs so inputs can also be checked o
 py spoof_spotter.py
 ```
 
-Choose an analysis mode, then enter an email address, domain, or website when prompted.
+Choose an analysis mode (1 or `standard`, 2 or `privacy`), then enter an email address, domain, or website when prompted. Any other answer to the mode prompt is rejected and asked again, so a typo never falls back to Standard Mode.
 
 ### 6. Run the Automated Test Suite
 
@@ -168,6 +168,8 @@ Standard Mode can use:
 - VirusTotal URL and domain reputation lookups
 - URLhaus malware-URL and host intelligence
 
+> **Standard Mode privacy note:** Full URLs can contain sensitive values such as embedded credentials, password-reset tokens, session identifiers, or private query parameters. When a full URL is entered in Standard Mode, VirusTotal and URLhaus are the only services that would receive the complete URL, so Spoof Spotter asks for confirmation first (`[y/N]`). Only `y` or `yes` sends it; anything else, including pressing Enter, skips those two full-URL lookups. The rest of the analysis still runs: local checks, the offline local ThreatFox list, live ThreatFox (which receives only the base domain), and Google Safe Browsing (which receives only hash prefixes). Skipped lookups are reported as skipped, never as clean, and do not change the risk score. Bare domains and email addresses do not trigger the prompt. Spoof Spotter API credentials are sent only in request headers and are never appended to the submitted URL.
+
 ### Privacy Mode
 
 Privacy Mode minimizes disclosure to external services.
@@ -182,6 +184,8 @@ Privacy Mode:
 - Blocks cleartext VirusTotal and URLhaus lookups
 
 Privacy Mode is designed to reduce external disclosure. It should not be interpreted as anonymous browsing or complete network anonymity.
+
+In both modes, IP addresses, internal network names (such as `localhost`, `.local`, `.lan`, `.internal`, `.corp`, and `home.arpa`), and names without a public domain suffix are never sent to any external service.
 
 ---
 
@@ -223,6 +227,8 @@ Spoof Spotter records the Tranco list source and version information in `data/re
 
 Spoof Spotter supports historical IOC correlation using the FBI LabHost domain dataset.
 
+The hostname and each parent domain down to the base domain are checked, so dataset entries that include a subdomain are matched without flagging the shared parent domain.
+
 Historical IOC matches are treated as strong indicators, but they do not by themselves establish that a domain is currently malicious.
 
 ### Local Threat Intelligence (Offline)
@@ -251,7 +257,7 @@ Every report shows the local list's status, download time, and number of fingerp
 
 The downloaded list is stored in `data/local_intel/`, which is excluded from Git. Each user downloads their own copy with their own Auth-Key. Absence from the local list does not mean an input is safe.
 
-abuse.ch provides free access for not-for-profit use. Commercial use may require a paid subscription through Spamhaus.
+The ThreatFox Community API is available free of charge under abuse.ch fair-use principles. Commercial or for-profit use may require a paid enhanced abuse.ch API subscription.
 
 ### Live Threat Intelligence
 
@@ -292,6 +298,8 @@ The integration includes:
 - Controlled live-test tooling
 
 Google Safe Browsing remains available in both Standard and Privacy modes because the lookup path sends locally generated hash prefixes rather than the submitted URL directly.
+
+Following Google's v5 documentation, threat details with an unrecognized threat type or attribute are disregarded, and matches that Google marks only as `CANARY` or `FRAME_ONLY` are shown in the report but not added to the risk score.
 
 #### VirusTotal
 
@@ -418,6 +426,7 @@ Privacy Mode blocks live ThreatFox, VirusTotal, and URLhaus lookups so the submi
 spoof_spotter/
 ├── spoof_spotter.py
 ├── core/
+│   ├── __init__.py
 │   ├── parser.py
 │   ├── domain_checker.py
 │   ├── reference_domains.py
@@ -469,7 +478,9 @@ spoof_spotter/
 │   ├── test_google_safe_browsing_protobuf.py
 │   ├── test_virustotal.py
 │   ├── test_urlhaus.py
-│   └── test_local_intel.py
+│   ├── test_local_intel.py
+│   ├── test_routing.py
+│   └── test_configure_api_keys.py
 ├── tools/
 │   ├── benchmark_similarity.py
 │   ├── update_reference_domains.py
@@ -531,26 +542,23 @@ Before committing changes, review both the working tree and staged diff for acci
 
 ## Release Roadmap
 
-Spoof Spotter is approaching feature completion. VirusTotal and URLhaus complete the live threat-intelligence integrations, and the offline local ThreatFox list completes the local intelligence path planned for the initial release.
+Spoof Spotter is approaching its stable initial release.
 
 Remaining planned work:
 
-- Validate the local ThreatFox list against live lookups over time.
-- Finalize CLI/report formatting and documentation.
-- Perform a final security, credential, and repository review.
 - Tag a stable initial release.
 
-Additional live APIs are intentionally out of scope for the initial release unless a clear security or coverage gap is discovered.
+Ongoing post-release validation will continue to compare local ThreatFox intelligence behavior with live results as the dataset changes over time.
 
 ---
 
 ## Project Status
 
-Spoof Spotter is approaching feature completion.
+Spoof Spotter is feature-complete for its initial stable release.
 
-The current implementation includes local spoofing analysis, separate approved and reference-domain architectures, a 10,000-domain Tranco similarity corpus, historical FBI/IC3 IOC correlation, live ThreatFox intelligence, Google Safe Browsing v5 privacy-conscious hash-prefix lookups, Standard and Privacy analysis modes, OS-keyring credential storage, VirusTotal URL and domain reputation lookups, URLhaus malware-URL lookups, an offline local ThreatFox list with freshness tracking, explainable heuristic risk scoring, performance benchmarking, and automated testing.
+The current implementation includes local spoofing analysis, separate approved and reference-domain architectures, a 10,000-domain Tranco similarity corpus, historical FBI/IC3 IOC correlation, live ThreatFox intelligence, Google Safe Browsing v5 privacy-conscious hash-prefix lookups, Standard and Privacy analysis modes, OS-keyring credential storage, VirusTotal URL and domain reputation lookups, URLhaus malware-URL and host intelligence, an offline local ThreatFox list with freshness tracking, explainable heuristic risk scoring, performance benchmarking, and automated testing.
 
-Remaining development is focused primarily on validation, documentation, testing, and release polish rather than additional intelligence sources.
+Future work will focus on validation and maintenance rather than additional intelligence sources.
 
 ---
 

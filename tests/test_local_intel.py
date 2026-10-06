@@ -37,7 +37,6 @@ from core.threatfox import (
 
 NOW = datetime(2026, 10, 3, 22, 0, 0, tzinfo=timezone.utc)
 
-# Reserved example names only. No real IOCs are used in tests.
 SAMPLE_IOCS = [
     {
         "id": "1001",
@@ -326,7 +325,6 @@ class TestLookup(unittest.TestCase):
         self.assertTrue(child["matched"])
         self.assertEqual(child["matches"][0]["matched_on"], "subdomain")
 
-        # The shared parent domain is not flagged by itself.
         parent = lookup("dyn.example", "dyn.example", store=store, now=NOW)
 
         self.assertFalse(parent["matched"])
@@ -432,7 +430,6 @@ class TestDownload(unittest.TestCase):
 
         self.assertEqual(args[0], THREATFOX_API_URL)
 
-        # The key travels in a header, never in the URL.
         self.assertEqual(kwargs["headers"]["Auth-Key"], "test-key")
         self.assertNotIn("test-key", args[0])
 

@@ -16,7 +16,24 @@ def normalize_mode(mode):
 
     return mode
 
+INTERNAL_SUFFIXES = (
+    "localhost",
+    "localdomain",
+    "local",
+    "internal",
+    "intranet",
+    "lan",
+    "corp",
+    "home",
+    "home.arpa",
+    "test",
+    "invalid",
+    "example",
+)
+
 def is_ip_address(value):
+    value = str(value).strip().strip("[]")
+
     try:
         ipaddress.ip_address(value)
         return True
@@ -40,14 +57,36 @@ def is_private_or_reserved_ip(value):
     )
 
 
+def looks_like_numeric_address(hostname):
+    for label in hostname.split("."):
+        if not label:
+            return False
+
+        if label.startswith("0x"):
+            if not label[2:] or not all(
+                character in "0123456789abcdef"
+                for character in label[2:]
+            ):
+                return False
+
+        elif not (label.isascii() and label.isdigit()):
+            return False
+
+    return True
+
+
 def is_internal_hostname(hostname):
     hostname = hostname.strip().lower().rstrip(".")
 
     if not hostname:
         return True
 
-    if hostname == "localhost":
+    if looks_like_numeric_address(hostname):
         return True
+
+    for suffix in INTERNAL_SUFFIXES:
+        if hostname == suffix or hostname.endswith("." + suffix):
+            return True
 
     if "." not in hostname and not is_ip_address(hostname):
         return True

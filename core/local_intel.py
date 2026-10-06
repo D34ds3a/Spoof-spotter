@@ -57,13 +57,11 @@ SOURCE_NAME = "ThreatFox (abuse.ch)"
 
 RESULT_SOURCE = "Local ThreatFox list"
 
-# The ThreatFox API returns at most the last 7 days of IOCs.
 DOWNLOAD_DAYS = 7
 
 STALE_AFTER_HOURS = 24
 EXPIRE_AFTER_HOURS = 7 * 24
 
-# Allows for small differences between computer clocks.
 CLOCK_TOLERANCE = timedelta(minutes=5)
 
 TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
@@ -84,9 +82,6 @@ DEFAULT_PORTS = {
     "http": 80,
     "https": 443,
 }
-
-
-# ---------- Normalizing and fingerprinting ----------
 
 
 def normalize_domain(value):
@@ -131,7 +126,6 @@ def normalize_url(value):
         return ""
 
     if ":" in host:
-        # IPv6 addresses keep their square brackets.
         host = f"[{host}]"
 
     if port is not None and port != DEFAULT_PORTS[scheme]:
@@ -141,7 +135,6 @@ def normalize_url(value):
 
     query = f"?{parts.query}" if parts.query else ""
 
-    # Any #fragment is dropped because it never reaches a web server.
     return f"{scheme}://{host}{path}{query}"
 
 
@@ -194,9 +187,6 @@ def candidate_hosts(hostname, base_domain):
     return candidates
 
 
-# ---------- Timestamps and freshness ----------
-
-
 def utc_now():
     return datetime.now(timezone.utc)
 
@@ -225,8 +215,6 @@ def check_freshness(downloaded_at, now=None):
     age = now - downloaded_at
 
     if age < -CLOCK_TOLERANCE:
-        # The download time is in the future, so the clock or the
-        # file cannot be trusted.
         return "invalid_timestamp", None
 
     age_hours = max(age.total_seconds(), 0) / 3600
@@ -238,9 +226,6 @@ def check_freshness(downloaded_at, now=None):
         return "stale", age_hours
 
     return "fresh", age_hours
-
-
-# ---------- Building and saving the local list ----------
 
 
 def _confidence(value):
@@ -263,8 +248,6 @@ def _entry_details(ioc_type, ioc):
         or ""
     )
 
-    # The IOC value itself and its ThreatFox ID are deliberately
-    # not saved, so the file cannot be turned back into a list.
     return {
         "ioc_type": ioc_type,
         "threat_type": str(ioc.get("threat_type") or ""),
@@ -299,8 +282,6 @@ def build_store(iocs, downloaded_at):
         elif ioc_type == URL_TYPE:
             normalized = normalize_url(ioc.get("ioc"))
         else:
-            # IP:port pairs and file hashes are not used by
-            # Spoof Spotter.
             skipped_count += 1
             continue
 
@@ -314,8 +295,6 @@ def build_store(iocs, downloaded_at):
         existing = entries[ioc_type].get(key)
 
         if existing is not None:
-            # The same indicator was reported more than once. Keep
-            # the report with the highest confidence.
             if (details["confidence"] or 0) <= (
                 existing["confidence"] or 0
             ):
@@ -346,8 +325,6 @@ def save_store(store, path=LOCAL_INTEL_FILE):
     with open(temporary_path, "w", encoding="utf-8") as file:
         json.dump(store, file, sort_keys=True)
 
-    # Replacing in one step means a crash can never leave a
-    # half-written list behind.
     os.replace(temporary_path, path)
 
 
@@ -383,9 +360,6 @@ def load_store(path=LOCAL_INTEL_FILE):
         return None, "invalid_file"
 
     return store, "ok"
-
-
-# ---------- Downloading ----------
 
 
 def _download_result(status, ok=False, iocs=None, **extra):
@@ -428,6 +402,7 @@ def download_recent_iocs(
                 "days": days,
             },
             timeout=timeout,
+            allow_redirects=False,
         )
 
     except requests.RequestException as error:
@@ -462,7 +437,6 @@ def download_recent_iocs(
         return _download_result(query_status, ok=True)
 
     if query_status != "ok":
-        # For example an unknown Auth-Key.
         return _download_result(query_status)
 
     data = payload.get("data")
@@ -502,8 +476,6 @@ def update_local_intel(
         return summary
 
     if not download["iocs"]:
-        # ThreatFox always has recent IOCs, so an empty download
-        # means something went wrong. Keep the existing list.
         summary["status"] = "empty_download"
         return summary
 
@@ -529,9 +501,6 @@ def update_local_intel(
     )
 
     return summary
-
-
-# ---------- Checking an input ----------
 
 
 def _lookup_result(query_status, available=False, **extra):

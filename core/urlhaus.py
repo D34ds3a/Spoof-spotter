@@ -31,7 +31,6 @@ LOOKUP_TYPES = {
 
 
 def get_auth_key():
-    # URLhaus and ThreatFox share the same abuse.ch Auth-Key.
     return get_credential(
         "threatfox"
     )
@@ -208,6 +207,7 @@ def lookup(
                 "Auth-Key": auth_key,
             },
             timeout=timeout,
+            allow_redirects=False,
         )
 
     except requests.RequestException as error:
@@ -266,7 +266,6 @@ def lookup(
         )
 
     if query_status != "ok":
-        # For example an unknown or missing Auth-Key.
         return _result(
             query_status,
             False,

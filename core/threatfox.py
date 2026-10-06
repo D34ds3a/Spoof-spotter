@@ -1,5 +1,3 @@
-import os
-
 import requests
 
 from core.credentials import (
@@ -53,11 +51,8 @@ def search_ioc(search_term, auth_key=None, timeout=10):
             headers=headers,
             json=payload,
             timeout=timeout,
+            allow_redirects=False,
         )
-
-        response.raise_for_status()
-
-        response_data = response.json()
 
     except requests.RequestException as error:
         return {
@@ -65,9 +60,32 @@ def search_ioc(search_term, auth_key=None, timeout=10):
             "matched": False,
             "source": "ThreatFox",
             "query_status": "request_error",
-            "error": str(error),
+            "error_type": type(error).__name__,
             "results": [],
         }
+
+    if response.status_code in (401, 403):
+        return {
+            "available": False,
+            "matched": False,
+            "source": "ThreatFox",
+            "query_status": "authentication_error",
+            "http_status": response.status_code,
+            "results": [],
+        }
+
+    if response.status_code != 200:
+        return {
+            "available": False,
+            "matched": False,
+            "source": "ThreatFox",
+            "query_status": "http_error",
+            "http_status": response.status_code,
+            "results": [],
+        }
+
+    try:
+        response_data = response.json()
 
     except ValueError:
         return {
@@ -78,14 +96,60 @@ def search_ioc(search_term, auth_key=None, timeout=10):
             "results": [],
         }
 
-    query_status = response_data.get(
-        "query_status",
-        "unknown",
+    if not isinstance(response_data, dict):
+        return {
+            "available": False,
+            "matched": False,
+            "source": "ThreatFox",
+            "query_status": "invalid_response",
+            "results": [],
+        }
+
+    query_status = str(
+        response_data.get("query_status") or "unknown"
     )
+
+    if query_status not in ("ok", "no_result"):
+        return {
+            "available": False,
+            "matched": False,
+            "source": "ThreatFox",
+            "query_status": query_status,
+            "results": [],
+        }
+
+    if query_status == "no_result":
+        return {
+            "available": True,
+            "matched": False,
+            "source": "ThreatFox",
+            "query_status": query_status,
+            "results": [],
+        }
 
     results = response_data.get("data") or []
 
-    if query_status != "ok" or not results:
+    if not isinstance(results, list):
+        results = []
+
+    valid_results = [
+        result
+        for result in results
+        if isinstance(result, dict)
+    ]
+
+    if results and not valid_results:
+        return {
+            "available": False,
+            "matched": False,
+            "source": "ThreatFox",
+            "query_status": "invalid_response",
+            "results": [],
+        }
+
+    results = valid_results
+
+    if not results:
         return {
             "available": True,
             "matched": False,

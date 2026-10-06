@@ -1,0 +1,29 @@
+Spoof Spotter Historical IOC Sources
+====================================
+
+Source: Federal Bureau of Investigation (FBI) / IC3
+Dataset: Phishing Domains Associated with LabHost PhaaS Platform Users
+Publication date: 2025-04-29
+Classification: TLP:CLEAR
+
+Purpose:
+Historical IOC correlation for defensive cybersecurity analysis.
+
+Dataset context:
+The FBI released approximately 42,000 phishing domains associated with
+the LabHost phishing-as-a-service platform between November 2021 and
+April 2024.
+
+Important limitations:
+- The information is historical in nature.
+- A listed domain may no longer be malicious.
+- FBI states that not every domain in the dataset was individually validated.
+- Inclusion in this dataset must not be treated as proof of current maliciousness.
+- Spoof Spotter uses this dataset as historical security context only.
+
+Official references:
+https://www.ic3.gov/CSA/2025/250429.pdf
+https://www.fbi.gov/file-repository/cyber-alerts/phishing-domains-associated-with-labhost-phaas-platform-users-042925.pdf/view
+
+Spoof Spotter file:
+data/historical_iocs/LabHost_Domains.csv

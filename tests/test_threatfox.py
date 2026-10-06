@@ -60,6 +60,7 @@ class TestThreatFox(unittest.TestCase):
         mock_post
     ):
         mock_response = Mock()
+        mock_response.status_code = 200
 
         mock_response.json.return_value = {
             "query_status": "ok",
@@ -120,6 +121,7 @@ class TestThreatFox(unittest.TestCase):
                 "exact_match": True,
             },
             timeout=10,
+            allow_redirects=False,
         )
 
     @patch("core.threatfox.requests.post")
@@ -128,6 +130,7 @@ class TestThreatFox(unittest.TestCase):
         mock_post
     ):
         mock_response = Mock()
+        mock_response.status_code = 200
 
         mock_response.json.return_value = {
             "query_status": "no_result",
@@ -182,6 +185,102 @@ class TestThreatFox(unittest.TestCase):
             result["query_status"],
             "request_error"
         )
+
+
+    def threatfox_reply(self, mock_post, payload):
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = payload
+        mock_post.return_value = mock_response
+
+    @patch("core.threatfox.requests.post")
+    def test_rejected_query_is_unavailable(self, mock_post):
+        self.threatfox_reply(mock_post, {"query_status": "unknown_auth_key"})
+
+        result = search_ioc("example.net", auth_key="fake-test-key")
+
+        self.assertFalse(result["available"])
+        self.assertFalse(result["matched"])
+        self.assertEqual(result["query_status"], "unknown_auth_key")
+
+    @patch("core.threatfox.requests.post")
+    def test_no_result_is_available(self, mock_post):
+        self.threatfox_reply(mock_post, {"query_status": "no_result", "data": "Your search did not yield any results"})
+
+        result = search_ioc("example.net", auth_key="fake-test-key")
+
+        self.assertTrue(result["available"])
+        self.assertFalse(result["matched"])
+
+    @patch("core.threatfox.requests.post")
+    def test_non_dict_reply_is_invalid(self, mock_post):
+        self.threatfox_reply(mock_post, ["not", "a", "dict"])
+
+        result = search_ioc("example.net", auth_key="fake-test-key")
+
+        self.assertFalse(result["available"])
+        self.assertEqual(result["query_status"], "invalid_response")
+
+    @patch("core.threatfox.requests.post")
+    def test_non_dict_rows_are_ignored(self, mock_post):
+        self.threatfox_reply(
+            mock_post,
+            {
+                "query_status": "ok",
+                "data": [
+                    "not a row",
+                    {"ioc": "bad-example.com", "ioc_type": "domain", "confidence_level": 50},
+                ],
+            },
+        )
+
+        result = search_ioc("bad-example.com", auth_key="fake-test-key")
+
+        self.assertTrue(result["matched"])
+        self.assertEqual(len(result["results"]), 1)
+
+    @patch("core.threatfox.requests.post")
+    def test_all_rows_malformed_is_invalid(self, mock_post):
+        self.threatfox_reply(mock_post, {"query_status": "ok", "data": ["x", 42]})
+
+        result = search_ioc("example.net", auth_key="fake-test-key")
+
+        self.assertFalse(result["available"])
+        self.assertEqual(result["query_status"], "invalid_response")
+
+    @patch("core.threatfox.requests.post")
+    def test_rejected_key_is_authentication_error(self, mock_post):
+        mock_response = Mock()
+        mock_response.status_code = 401
+        mock_post.return_value = mock_response
+
+        result = search_ioc("example.net", auth_key="bad-key")
+
+        self.assertFalse(result["available"])
+        self.assertEqual(result["query_status"], "authentication_error")
+
+    @patch("core.threatfox.requests.post")
+    def test_redirect_is_not_followed_or_parsed(self, mock_post):
+        mock_response = Mock()
+        mock_response.status_code = 302
+        mock_response.json.return_value = {"query_status": "ok", "data": []}
+        mock_post.return_value = mock_response
+
+        result = search_ioc("example.net", auth_key="fake-test-key")
+
+        self.assertFalse(result["available"])
+        self.assertEqual(result["query_status"], "http_error")
+        self.assertEqual(result["http_status"], 302)
+
+    @patch("core.threatfox.requests.post")
+    def test_request_error_reports_type_only(self, mock_post):
+        mock_post.side_effect = requests.ConnectionError("details that should not be shown")
+
+        result = search_ioc("example.net", auth_key="fake-test-key")
+
+        self.assertEqual(result["error_type"], "ConnectionError")
+        self.assertNotIn("error", result)
+
 
 if __name__ == "__main__":
     unittest.main()

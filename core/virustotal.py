@@ -246,6 +246,7 @@ def lookup(
                 "Accept": "application/json",
             },
             timeout=timeout,
+            allow_redirects=False,
         )
 
     except requests.RequestException as error:
@@ -259,7 +260,6 @@ def lookup(
     status_code = response.status_code
 
     if status_code == 404:
-        # VirusTotal has no report for this indicator.
         return _result(
             "not_found",
             True,

@@ -1,5 +1,12 @@
+import ipaddress
 from urllib.parse import urlparse
+
 import tldextract
+
+DOMAIN_EXTRACTOR = tldextract.TLDExtract(
+    suffix_list_urls=(),
+    fallback_to_snapshot=True,
+)
 
 def classify_input(user_input):
     user_input = user_input.strip()
@@ -26,12 +33,22 @@ def parse_domain(user_input):
     if "://" not in user_input:
         user_input = "//" + user_input
 
-    parsed_url = urlparse(user_input)
+    try:
+        parsed = urlparse(user_input)
+        hostname = parsed.hostname
+    except ValueError:
+        return ""
 
-    if parsed_url.hostname:
-        return parsed_url.hostname.lower()
+    if not hostname:
+        return ""
 
-    return ""
+    if "[" in parsed.netloc or "]" in parsed.netloc:
+        try:
+            ipaddress.IPv6Address(hostname)
+        except ValueError:
+            return ""
+
+    return hostname.lower()
 
 def extract_domain_parts(user_input):
     hostname = parse_domain(user_input)
@@ -39,7 +56,7 @@ def extract_domain_parts(user_input):
     if not hostname:
         return "", ""
 
-    extracted = tldextract.extract(hostname)
+    extracted = DOMAIN_EXTRACTOR(hostname)
 
     if not extracted.domain or not extracted.suffix:
         return "", ""
@@ -104,6 +121,9 @@ def validate_email(user_input):
         return False
 
     if " " in address:
+        return False
+
+    if parse_domain(domain) != domain.strip().lower():
         return False
 
     return validate_domain(domain)

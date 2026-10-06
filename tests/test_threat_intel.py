@@ -3,6 +3,7 @@ import unittest
 from pathlib import Path
 
 from core.threat_intel import (
+    candidate_domains,
     load_historical_iocs,
     is_historical_ioc,
     find_historical_ioc_sources,
@@ -131,6 +132,78 @@ class TestThreatIntel(unittest.TestCase):
             details[0]["creation_date"],
             "11/9/2021"
         )
+
+
+    def labhost_sources(self):
+        return {
+            "Test FBI Source": {
+                "login.shared-example.com": {
+                    "creation_date": "1/2/2024",
+                    "status": "historical",
+                }
+            }
+        }
+
+    def test_candidate_domains(self):
+        self.assertEqual(
+            candidate_domains("example.co.uk", "a.b.example.co.uk"),
+            ["a.b.example.co.uk", "b.example.co.uk", "example.co.uk"],
+        )
+
+        self.assertEqual(
+            candidate_domains("example.com", "example.com"),
+            ["example.com"],
+        )
+
+    def test_subdomain_entry_matches_its_hostname(self):
+        sources = self.labhost_sources()
+
+        details = get_historical_ioc_details(
+            "shared-example.com",
+            sources,
+            hostname="login.shared-example.com",
+        )
+
+        self.assertEqual(details[0]["domain"], "login.shared-example.com")
+
+        self.assertEqual(
+            find_historical_ioc_sources(
+                "shared-example.com",
+                sources,
+                hostname="www.login.shared-example.com",
+            ),
+            ["Test FBI Source"],
+        )
+
+    def test_subdomain_entry_does_not_flag_the_parent(self):
+        sources = self.labhost_sources()
+
+        for hostname in ("shared-example.com", "other.shared-example.com"):
+            self.assertEqual(
+                find_historical_ioc_sources(
+                    "shared-example.com",
+                    sources,
+                    hostname=hostname,
+                ),
+                [],
+            )
+
+    def test_labhost_rows_with_path_or_trailing_dot_are_normalized(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            file_path = Path(temp_dir) / "labhost.csv"
+
+            file_path.write_text(
+                "Domain,Create Date\n"
+                "path-example.com/secure,1/2/2024\n"
+                "dot-example.com.,1/3/2024\n",
+                encoding="utf-8",
+            )
+
+            records = load_fbi_labhost_csv(file_path)
+
+        self.assertIn("path-example.com", records)
+        self.assertIn("dot-example.com", records)
+
 
 if __name__ == "__main__":
     unittest.main()

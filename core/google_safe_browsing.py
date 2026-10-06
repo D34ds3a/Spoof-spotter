@@ -20,13 +20,6 @@ PSL_EXTRACTOR = tldextract.TLDExtract(
 
 HASH_PREFIX_LENGTH = 4
 
-from urllib.parse import (
-    quote,
-    unquote,
-    urlsplit,
-    urlunsplit,
-)
-
 
 def remove_control_characters(url):
     return (

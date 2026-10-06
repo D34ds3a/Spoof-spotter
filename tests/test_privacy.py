@@ -196,5 +196,32 @@ class TestPrivacy(unittest.TestCase):
         self.assertFalse(allow_external_lookup("2001:4860:4860::8888"))
 
 
+    def test_internal_names_are_not_looked_up(self):
+        for hostname in (
+            "printer.lan",
+            "nas.local",
+            "db01.corp.internal",
+            "router.home.arpa",
+            "app.localhost",
+            "wiki.intranet",
+            "build.test",
+        ):
+            self.assertFalse(allow_external_lookup(hostname), hostname)
+
+    def test_bracketed_ip_is_not_looked_up(self):
+        self.assertFalse(allow_external_lookup("[10.0.0.1]"))
+        self.assertFalse(allow_external_lookup("[::1]"))
+
+    def test_public_domain_is_looked_up(self):
+        self.assertTrue(allow_external_lookup("login.example.net"))
+
+    def test_numeric_address_forms_are_not_looked_up(self):
+        for hostname in ("127.1", "010.0.0.1", "0x7f.0.0.1", "3232235777"):
+            self.assertFalse(allow_external_lookup(hostname), hostname)
+
+        self.assertTrue(allow_external_lookup("1password.com"))
+        self.assertTrue(allow_external_lookup("123.example.net"))
+
+
 if __name__ == "__main__":
     unittest.main()

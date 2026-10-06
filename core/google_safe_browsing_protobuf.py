@@ -28,9 +28,6 @@ import base64
 import json
 
 
-# Enum values from safebrowsing.proto. Values the server adds later
-# become "UNKNOWN_..." strings, which the client's validator rejects,
-# as Google's forward-compatibility rules require.
 THREAT_TYPE_NAMES = {
     0: "THREAT_TYPE_UNSPECIFIED",
     1: "MALWARE",
@@ -45,7 +42,6 @@ THREAT_ATTRIBUTE_NAMES = {
     2: "FRAME_ONLY",
 }
 
-# Protobuf wire types.
 WIRE_VARINT = 0
 WIRE_FIXED64 = 1
 WIRE_LENGTH_DELIMITED = 2
@@ -57,10 +53,6 @@ MAX_ERROR_MESSAGE_LENGTH = 300
 class ProtobufDecodeError(ValueError):
     """Raised when bytes are not a valid protobuf message."""
 
-
-# ------------------------------------------------------------------
-# Low-level protobuf reading
-# ------------------------------------------------------------------
 
 def _read_varint(data, position):
     result = 0
@@ -134,10 +126,6 @@ def iter_fields(data):
         yield field_number, wire_type, value
 
 
-# ------------------------------------------------------------------
-# Safe Browsing messages
-# ------------------------------------------------------------------
-
 def format_duration(seconds, nanos):
     """Format a Duration like Google's JSON does: "300s", "3.500s"."""
     negative = seconds < 0 or nanos < 0
@@ -161,7 +149,6 @@ def format_duration(seconds, nanos):
 
 
 def _decode_duration(data):
-    # google.protobuf.Duration: seconds = 1, nanos = 2
     seconds = 0
     nanos = 0
 
@@ -179,7 +166,6 @@ def _enum_name(names, value, unknown_prefix):
 
 
 def _decode_full_hash_detail(data):
-    # FullHashDetail: threat_type = 1, repeated attributes = 2
     threat_type = 0
     attributes = []
 
@@ -188,11 +174,9 @@ def _decode_full_hash_detail(data):
             threat_type = value
 
         elif number == 2 and wire_type == WIRE_VARINT:
-            # One attribute per field (unpacked encoding).
             attributes.append(value)
 
         elif number == 2 and wire_type == WIRE_LENGTH_DELIMITED:
-            # Several attributes in one field (packed encoding).
             position = 0
 
             while position < len(value):
@@ -217,7 +201,6 @@ def _decode_full_hash_detail(data):
 
 
 def _decode_full_hash(data):
-    # FullHash: full_hash = 1, repeated full_hash_details = 2
     full_hash = b""
     details = []
 
@@ -247,7 +230,6 @@ def decode_search_hashes_response(data):
         "fullHashes": [],
     }
 
-    # SearchHashesResponse: repeated full_hashes = 1, cache_duration = 2
     for number, wire_type, value in iter_fields(bytes(data)):
         if number == 1 and wire_type == WIRE_LENGTH_DELIMITED:
             result["fullHashes"].append(_decode_full_hash(value))
@@ -257,10 +239,6 @@ def decode_search_hashes_response(data):
 
     return result
 
-
-# ------------------------------------------------------------------
-# Error replies
-# ------------------------------------------------------------------
 
 def describe_error_body(body, content_type=""):
     """
@@ -290,7 +268,6 @@ def describe_error_body(body, content_type=""):
         text = body.decode("utf-8", "replace").strip()
         return text[:MAX_ERROR_MESSAGE_LENGTH] or None
 
-    # google.rpc.Status: code = 1, message = 2
     try:
         for number, wire_type, value in iter_fields(bytes(body)):
             if number == 2 and wire_type == WIRE_LENGTH_DELIMITED:

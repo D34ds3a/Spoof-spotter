@@ -31,15 +31,11 @@ from core.urlhaus import (
 )
 
 
-# Google's official Safe Browsing test page: a harmless page that
-# security vendors intentionally flag as phishing.
 VIRUSTOTAL_TEST_URL = (
     "https://testsafebrowsing.appspot.com/"
     "s/phishing.html"
 )
 
-# A reserved example domain. URLhaus should report no results,
-# which confirms that the Auth-Key is accepted.
 URLHAUS_TEST_HOST = "example.com"
 
 

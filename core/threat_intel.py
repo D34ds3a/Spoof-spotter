@@ -23,6 +23,7 @@ def load_fbi_labhost_csv(file_path=FBI_LABHOST_FILE):
 
         for row in reader:
             domain = (row.get("Domain") or "").strip().lower()
+            domain = domain.split("/", 1)[0].rstrip(".")
             create_date = (row.get("Create Date") or "").strip()
 
             if not domain:
@@ -56,16 +57,44 @@ def load_historical_sources():
     return {"FBI LabHost FLASH": load_fbi_labhost_csv()}
 
 
+def candidate_domains(base_domain, hostname=None):
+    base_domain = (base_domain or "").strip().lower().rstrip(".")
+    hostname = (hostname or "").strip().lower().rstrip(".")
+
+    candidates = []
+
+    if hostname and base_domain and hostname.endswith("." + base_domain):
+        labels = hostname.split(".")
+        base_label_count = len(base_domain.split("."))
+
+        for start in range(len(labels) - base_label_count):
+            candidates.append(".".join(labels[start:]))
+
+    if base_domain:
+        candidates.append(base_domain)
+
+    return candidates
+
+
+def first_matching_domain(records, candidates):
+    for candidate in candidates:
+        if candidate in records:
+            return candidate
+
+    return None
+
+
 def find_historical_ioc_sources(
     base_domain,
-    historical_sources
+    historical_sources,
+    hostname=None,
 ):
     matches = []
 
-    normalized_domain = base_domain.lower()
+    candidates = candidate_domains(base_domain, hostname)
 
     for source_name, records in historical_sources.items():
-        if normalized_domain in records:
+        if first_matching_domain(records, candidates):
             matches.append(source_name)
 
     return matches
@@ -73,19 +102,23 @@ def find_historical_ioc_sources(
 
 def get_historical_ioc_details(
     base_domain,
-    historical_sources
+    historical_sources,
+    hostname=None,
 ):
     findings = []
 
-    normalized_domain = base_domain.lower()
+    candidates = candidate_domains(base_domain, hostname)
 
     for source_name, records in historical_sources.items():
-        if normalized_domain in records:
-            record = records[normalized_domain]
+        matched_domain = first_matching_domain(records, candidates)
+
+        if matched_domain:
+            record = records[matched_domain]
 
             findings.append(
                 {
                     "source": source_name,
+                    "domain": matched_domain,
                     "creation_date": record.get(
                         "creation_date",
                         ""

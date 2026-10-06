@@ -1,3 +1,7 @@
+from core.google_safe_browsing_client import (
+    has_enforceable_match,
+)
+
 def yes_no(value):
     return "Yes" if value else "No"
 
@@ -146,6 +150,13 @@ def add_virustotal_section(lines, result):
             "Note: Privacy Mode prevents the "
             "submitted URL or domain from being "
             "sent to VirusTotal."
+        )
+
+    elif status == "user_declined":
+        lines.append(
+            "Note: Full-URL lookup skipped - user declined "
+            "URL disclosure. A skipped lookup is not a "
+            "clean result."
         )
 
     elif status == "missing_api_key":
@@ -321,6 +332,13 @@ def add_urlhaus_section(lines, result):
             "sent to URLhaus."
         )
 
+    elif status == "user_declined":
+        lines.append(
+            "Note: Full-URL lookup skipped - user declined "
+            "URL disclosure. A skipped lookup is not a "
+            "clean result."
+        )
+
     elif status == "missing_auth_key":
         lines.append(
             "Note: URLhaus uses the same abuse.ch "
@@ -369,7 +387,6 @@ def describe_age(age_hours):
 
 
 def format_utc_timestamp(value):
-    # "2026-10-03T21:50:00Z" -> "2026-10-03 21:50 UTC"
     text = str(value or "")
 
     if len(text) >= 16 and "T" in text:
@@ -558,6 +575,13 @@ def generate_report(data):
             lines.append(
                 f"- Source: {finding['source']}"
             )
+
+            matched_domain = finding.get("domain")
+
+            if matched_domain and matched_domain != data["base_domain"]:
+                lines.append(
+                    f"  Matched domain: {matched_domain}"
+                )
             lines.append(
                 f"  Domain creation date: "
                 f"{finding['creation_date']}"
@@ -1016,6 +1040,13 @@ def generate_report(data):
                             "Google threat attributes: "
                             f"{attribute_text}"
                         )
+
+            if not has_enforceable_match(google_result):
+                lines.append(
+                    "Note: Google marked every matching entry CANARY "
+                    "(not for enforcement) or FRAME_ONLY (only for "
+                    "embedded frames), so it is shown but not scored."
+                )
 
         lines.append(
             "Note: Google Safe Browsing "

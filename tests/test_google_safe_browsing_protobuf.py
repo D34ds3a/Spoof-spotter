@@ -10,8 +10,6 @@ from core.google_safe_browsing_protobuf import (
 )
 
 
-# Tiny protobuf writer so tests can build
-# the same binary replies Google sends.
 def encode_varint(value):
     output = bytearray()
 
@@ -85,8 +83,6 @@ class TestGoogleSafeBrowsingProtobuf(
         )
 
     def test_match_with_packed_attributes(self):
-        # threat_type = 1 (MALWARE),
-        # attributes packed = [1, 2]
         packed = encode_varint(1) + encode_varint(2)
 
         detail = (
@@ -292,7 +288,6 @@ class TestGoogleSafeBrowsingProtobuf(
         )
 
     def test_protobuf_status_error_message(self):
-        # google.rpc.Status{code=3, message}
         body = (
             encode_field(1, 3)
             + encode_field(

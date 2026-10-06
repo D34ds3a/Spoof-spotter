@@ -31,7 +31,7 @@ class TestRisk(unittest.TestCase):
         self.assertEqual(level, "HIGH")
 
         self.assertIn(
-            "Base domain appears in a historical IOC dataset.",
+            "The domain appears in a historical IOC dataset.",
             reasons
         )
 
@@ -75,12 +75,23 @@ class TestRisk(unittest.TestCase):
         self.assertEqual(score, 10)
         self.assertEqual(level, "LOW")
 
-    def test_google_safe_browsing_match_adds_risk(self):
-        google_result = {
+    def google_match(self, *details):
+        return {
             "available": True,
             "matched": True,
             "query_status": "ok",
+            "matches": [
+                {
+                    "expression": "bad.example.net/",
+                    "details": list(details),
+                }
+            ],
         }
+
+    def test_google_safe_browsing_match_adds_risk(self):
+        google_result = self.google_match(
+            {"threatType": "MALWARE", "attributes": []},
+        )
 
         score, level, reasons = calculate_risk(
             approved_match=True,
@@ -129,19 +140,10 @@ class TestRisk(unittest.TestCase):
         self.assertEqual(reasons, [])
 
     def test_google_safe_browsing_multiple_threat_types_count_once(self):
-        google_result = {
-            "available": True,
-            "matched": True,
-            "query_status": "ok",
-            "matches": [
-                {
-                    "threat_types": [
-                        "MALWARE",
-                        "POTENTIALLY_HARMFUL_APPLICATION",
-                    ],
-                }
-            ],
-        }
+        google_result = self.google_match(
+            {"threatType": "MALWARE", "attributes": []},
+            {"threatType": "POTENTIALLY_HARMFUL_APPLICATION", "attributes": []},
+        )
 
         score, level, reasons = calculate_risk(
             approved_match=True,
@@ -150,6 +152,58 @@ class TestRisk(unittest.TestCase):
 
         self.assertEqual(score, 50)
         self.assertEqual(level, "HIGH")
+
+    def test_google_safe_browsing_canary_only_not_scored(self):
+        google_result = self.google_match(
+            {"threatType": "SOCIAL_ENGINEERING", "attributes": ["CANARY"]},
+        )
+
+        score, level, reasons = calculate_risk(
+            approved_match=True,
+            google_safe_browsing_result=google_result,
+        )
+
+        self.assertEqual(score, 0)
+        self.assertEqual(reasons, [])
+
+    def test_google_safe_browsing_frame_only_not_scored(self):
+        google_result = self.google_match(
+            {"threatType": "MALWARE", "attributes": ["FRAME_ONLY"]},
+        )
+
+        score, level, reasons = calculate_risk(
+            approved_match=True,
+            google_safe_browsing_result=google_result,
+        )
+
+        self.assertEqual(score, 0)
+
+    def test_google_safe_browsing_one_enforceable_detail_is_scored(self):
+        google_result = self.google_match(
+            {"threatType": "MALWARE", "attributes": ["CANARY"]},
+            {"threatType": "SOCIAL_ENGINEERING", "attributes": []},
+        )
+
+        score, level, reasons = calculate_risk(
+            approved_match=True,
+            google_safe_browsing_result=google_result,
+        )
+
+        self.assertEqual(score, 50)
+
+    def test_google_safe_browsing_match_without_details_not_scored(self):
+        google_result = {
+            "available": True,
+            "matched": True,
+            "query_status": "ok",
+        }
+
+        score, level, reasons = calculate_risk(
+            approved_match=True,
+            google_safe_browsing_result=google_result,
+        )
+
+        self.assertEqual(score, 0)
 
     def test_similar_domain_with_digit(self):
         score, level, reasons = calculate_risk(
@@ -513,7 +567,6 @@ class TestRisk(unittest.TestCase):
             local_intel_result=local_result,
         )
 
-        # 45 for the live match and 5 for its confidence only.
         self.assertEqual(score, 50)
 
     def test_live_threatfox_wins_for_base_domain(self):

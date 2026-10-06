@@ -37,6 +37,11 @@ VALID_THREAT_ATTRIBUTES = {
     "FRAME_ONLY",
 }
 
+NON_ENFORCEABLE_ATTRIBUTES = {
+    "CANARY",
+    "FRAME_ONLY",
+}
+
 
 DEFAULT_CACHE = SafeBrowsingCache()
 
@@ -96,6 +101,7 @@ def request_full_hashes(
             "x-goog-api-key": api_key,
         },
         timeout=timeout,
+        allow_redirects=False,
     )
 
     if response.status_code != 200:
@@ -273,6 +279,9 @@ def build_search_result(
             )
         )
 
+        if not details:
+            continue
+
         for candidate in local_candidates:
             match_key = (
                 candidate["expression"],
@@ -313,6 +322,26 @@ def build_search_result(
             network_request_made
         ),
     }
+
+
+def has_enforceable_match(result):
+    if not isinstance(result, dict):
+        return False
+
+    for match in result.get("matches") or []:
+        if not isinstance(match, dict):
+            continue
+
+        for detail in match.get("details") or []:
+            if not isinstance(detail, dict):
+                continue
+
+            attributes = set(detail.get("attributes") or [])
+
+            if not attributes & NON_ENFORCEABLE_ATTRIBUTES:
+                return True
+
+    return False
 
 
 def search_hash_candidates(
