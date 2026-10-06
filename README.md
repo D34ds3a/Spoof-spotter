@@ -542,11 +542,7 @@ Before committing changes, review both the working tree and staged diff for acci
 
 ## Release Roadmap
 
-Spoof Spotter is approaching its stable initial release.
-
-Remaining planned work:
-
-- Tag a stable initial release.
+Spoof Spotter v1.0.0 is the stable initial release.
 
 Ongoing post-release validation will continue to compare local ThreatFox intelligence behavior with live results as the dataset changes over time.
 
@@ -554,7 +550,7 @@ Ongoing post-release validation will continue to compare local ThreatFox intelli
 
 ## Project Status
 
-Spoof Spotter is feature-complete for its initial stable release.
+Spoof Spotter v1.0.0 is released and feature-complete.
 
 The current implementation includes local spoofing analysis, separate approved and reference-domain architectures, a 10,000-domain Tranco similarity corpus, historical FBI/IC3 IOC correlation, live ThreatFox intelligence, Google Safe Browsing v5 privacy-conscious hash-prefix lookups, Standard and Privacy analysis modes, OS-keyring credential storage, VirusTotal URL and domain reputation lookups, URLhaus malware-URL and host intelligence, an offline local ThreatFox list with freshness tracking, explainable heuristic risk scoring, performance benchmarking, and automated testing.
 
